@@ -1,9 +1,13 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { CurriculumPhase } from "./curriculum";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "missing_key" });
 
 export async function parseCurriculumFromImage(base64Image: string, mimeType: string): Promise<CurriculumPhase[]> {
+  if (process.env.GEMINI_API_KEY === "" || process.env.GEMINI_API_KEY === "missing_key") {
+    alert("Gemini API key is not configured. Setup VITE_GEMINI_API_KEY in Vercel.");
+    throw new Error("Missing Gemini API Key");
+  }
   const response = await ai.models.generateContent({
     model: "gemini-3.1-pro-preview",
     contents: {
