@@ -47,7 +47,9 @@ import {
   Map,
   GripVertical,
   X,
-  Zap
+  Zap,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -139,7 +141,7 @@ const SearchableInput = ({
   );
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className={`relative ${isOpen ? 'z-[100]' : ''}`} ref={containerRef}>
       <div className="flex gap-2">
         <div className="relative flex-1">
           <input 
@@ -172,7 +174,7 @@ const SearchableInput = ({
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 5 }}
-            className="absolute z-50 w-full mt-2 bg-white/5 border border-brand-border backdrop-blur-md rounded-xl shadow-xl max-h-40 overflow-y-auto custom-scrollbar p-1"
+            className="absolute z-50 w-full mt-2 bg-[#09090b] border border-brand-border rounded-xl shadow-2xl max-h-40 overflow-y-auto custom-scrollbar p-1"
           >
             {filteredOptions.length > 0 ? (
               <div className="space-y-0.5">
@@ -230,6 +232,7 @@ import {
   CurriculumPhase,
   CurriculumSession
 } from './lib/curriculum';
+import { parseCurriculumFromImage } from './lib/gemini';
 
 const IST_TIMEZONE = 'Asia/Kolkata';
 
@@ -297,7 +300,7 @@ const CustomDatePicker = ({
   };
 
   return (
-    <div className="space-y-1.5 relative" ref={popoverRef}>
+    <div className={`space-y-1.5 relative ${isOpen ? 'z-[100]' : ''}`} ref={popoverRef}>
       <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">{label}</span>
       <button
         type="button"
@@ -315,7 +318,7 @@ const CustomDatePicker = ({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
             transition={{ duration: 0.15 }}
-            className="absolute top-full left-0 mt-2 w-72 bg-white/5 border border-brand-border backdrop-blur-md rounded-2xl shadow-xl z-[100] p-4 overflow-hidden"
+            className="absolute top-full left-0 mt-2 w-72 bg-[#09090b] border border-brand-border rounded-2xl shadow-2xl z-[100] p-4 overflow-hidden"
           >
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
@@ -424,7 +427,7 @@ const SortableSession = ({ session, phaseId, onRename, onDelete }: {
     <div
       ref={setNodeRef}
       style={style}
-      className="group flex items-center gap-3 bg-white/5 border border-brand-border backdrop-blur-md rounded-xl p-2 hover:border-brand-accent-teal/40 transition-all shadow-sm"
+      className="group flex items-center gap-3 bg-white/5 border border-brand-border rounded-xl p-2 hover:border-brand-accent-teal/40 transition-all shadow-sm"
     >
       <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-slate-500 hover:text-slate-400 p-1">
         <Map size={14} />
@@ -574,6 +577,7 @@ export default function App() {
   const [recentBatches, setRecentBatches] = useState<string[]>([]);
   const [recentCourses, setRecentCourses] = useState<string[]>([]);
   const [blueprint, setBlueprint] = useState<CurriculumBlueprint>(DEFAULT_CURRICULUM_BLUEPRINT);
+  const [isParsingImage, setIsParsingImage] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [hasSavedData, setHasSavedData] = useState(false);
@@ -678,6 +682,47 @@ export default function App() {
     };
     setBlueprint(newBlueprint);
     localStorage.setItem('curriculum_blueprint', JSON.stringify(newBlueprint));
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsParsingImage(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Data = reader.result as string;
+        const base64Content = base64Data.split(',')[1];
+        
+        try {
+          const extractedPhases = await parseCurriculumFromImage(base64Content, file.type);
+          
+          if (extractedPhases && extractedPhases.length > 0) {
+            const newBlueprint = {
+              ...blueprint,
+              phases: extractedPhases
+            };
+            setBlueprint(newBlueprint);
+            localStorage.setItem('curriculum_blueprint', JSON.stringify(newBlueprint));
+            alert('Curriculum updated successfully from the uploaded image!');
+          } else {
+            alert('Could not extract any phases from the image. Please try another one.');
+          }
+        } catch (error: any) {
+          console.error(error);
+          alert('Error parsing image: ' + error.message);
+        } finally {
+          setIsParsingImage(false);
+          // reset the input
+          e.target.value = '';
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (e) {
+      console.error(e);
+      setIsParsingImage(false);
+    }
   };
 
   const renameSession = (phaseId: string, sessionId: string, newTitle: string) => {
@@ -1096,12 +1141,12 @@ export default function App() {
     };
 
     return (
-      <div className="space-y-1.5">
+      <div className={`space-y-1.5 ${isHourOpen || isMinuteOpen ? 'relative z-[100]' : ''}`}>
         <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">{label}</span>
-        <div className="flex items-center gap-1.5 bg-white/5 border border-brand-border backdrop-blur-md rounded-xl px-3 py-2 shadow-sm  focus-within:ring-brand-accent-violet/20 focus-within:border-brand-accent-violet/50 transition-all">
+        <div className="flex items-center gap-1.5 bg-white/5 border border-brand-border rounded-xl px-3 py-2 shadow-sm  focus-within:ring-brand-accent-violet/20 focus-within:border-brand-accent-violet/50 transition-all">
           
           {/* Hour Selector */}
-          <div className="relative" ref={hourRef}>
+          <div className={`relative ${isHourOpen ? 'z-[100]' : ''}`} ref={hourRef}>
             <button 
               type="button"
               onClick={() => { setIsHourOpen(!isHourOpen); setIsMinuteOpen(false); }}
@@ -1116,7 +1161,7 @@ export default function App() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 8 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-32 bg-white/5 border border-brand-border backdrop-blur-md rounded-xl shadow-xl z-[100] p-2 grid grid-cols-3 gap-1"
+                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-32 bg-[#09090b] border border-brand-border rounded-xl shadow-2xl z-[100] p-2 grid grid-cols-3 gap-1"
                 >
                   {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
                     <button
@@ -1140,7 +1185,7 @@ export default function App() {
           <span className="text-slate-500 font-bold">:</span>
 
           {/* Minute Selector */}
-          <div className="relative" ref={minuteRef}>
+          <div className={`relative ${isMinuteOpen ? 'z-[100]' : ''}`} ref={minuteRef}>
             <button 
               type="button"
               onClick={() => { setIsMinuteOpen(!isMinuteOpen); setIsHourOpen(false); }}
@@ -1155,7 +1200,7 @@ export default function App() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 8 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-white/5 border border-brand-border backdrop-blur-md rounded-xl shadow-xl z-[100] p-2 grid grid-cols-5 gap-1 max-h-[240px] overflow-y-auto custom-scrollbar"
+                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-[#09090b] border border-brand-border rounded-xl shadow-2xl z-[100] p-2 grid grid-cols-5 gap-1 max-h-[240px] overflow-y-auto custom-scrollbar"
                 >
                   {Array.from({ length: 60 }, (_, i) => i).map(min => (
                     <button
@@ -1295,7 +1340,11 @@ export default function App() {
         
         if (slot.category === 'live-sessions-aig') {
           if (curriculumManagerList.length > 0) {
-            const curriculumItem = curriculumManagerList[liveSessionCounter % curriculumManagerList.length];
+            if (liveSessionCounter >= curriculumManagerList.length) {
+              // Curriculum exhausted, skip generating further sessions of this type
+              return;
+            }
+            const curriculumItem = curriculumManagerList[liveSessionCounter];
             finalTitle = curriculumItem.name;
             
             const ids = activeBatches.map(batch => {
@@ -1672,7 +1721,7 @@ export default function App() {
 
               {/* Curriculum Manager UI Component */}
               <div className="bg-white/5 rounded-3xl shadow-sm border border-brand-border overflow-hidden mb-8">
-                <div className="p-6 border-b border-brand-border flex items-center justify-between bg-white/[0.03]">
+                <div className="p-6 border-b border-brand-border flex items-center justify-between bg-white/[0.03] flex-wrap gap-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-brand-accent-violet/10 flex items-center justify-center text-brand-accent-teal">
                       <Database size={20} />
@@ -1681,6 +1730,23 @@ export default function App() {
                       <h2 className="text-lg font-bold text-white">Curriculum Manager</h2>
                       <p className="text-xs text-slate-400">Edit sessions, phases, and map Course IDs</p>
                     </div>
+                  </div>
+                  <div>
+                    <label className={`flex items-center gap-2 px-4 py-2 ${isParsingImage ? 'bg-brand-accent-violet/50 cursor-not-allowed' : 'bg-brand-accent-violet hover:bg-brand-accent-violet/80 cursor-pointer'} text-white rounded-xl text-xs font-bold transition-colors`}>
+                      {isParsingImage ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <ImageIcon size={14} />
+                      )}
+                      <span>{isParsingImage ? 'Parsing Curriculum...' : 'Upload Image'}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={handleImageUpload}
+                        disabled={isParsingImage}
+                      />
+                    </label>
                   </div>
                 </div>
                 
@@ -1714,7 +1780,7 @@ export default function App() {
                                     value={blueprint.batchPhaseIds[batch]?.[phase.id] || ''}
                                     onChange={(e) => updateBlueprintBatchId(batch, phase.id, e.target.value)}
                                     placeholder={`${phase.name} ID for ${batch}`}
-                                    className="w-full bg-white/5 border border-brand-border backdrop-blur-md rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                                    className="w-full bg-white/5 border border-brand-border rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
                                   />
                                 </div>
                               ))}
@@ -1807,7 +1873,7 @@ export default function App() {
                               e.stopPropagation();
                               removeTimeSlot(slot.id);
                             }}
-                            className="absolute -top-2 -right-2 w-6 h-6 bg-white/5 border border-brand-border backdrop-blur-md text-slate-400 rounded-full flex items-center justify-center hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/30 transition-all opacity-0 group-hover:opacity-100 shadow-sm z-20"
+                            className="absolute -top-2 -right-2 w-6 h-6 bg-white/5 border border-brand-border text-slate-400 rounded-full flex items-center justify-center hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/30 transition-all opacity-0 group-hover:opacity-100 shadow-sm z-20"
                           >
                             <X size={12} />
                           </button>
@@ -1901,7 +1967,7 @@ export default function App() {
                                     value={slot.title}
                                     onChange={(e) => updateTimeSlot(slot.id, 'title', e.target.value)}
                                     placeholder="Mon/Wed/Fri Session Title..."
-                                    className="w-full bg-white/5 border border-brand-border backdrop-blur-md rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                                    className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
                                   />
                                 </div>
                               </div>
@@ -1934,7 +2000,7 @@ export default function App() {
 
                           <div className="space-y-1.5">
                             <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Platform</span>
-                            <div className="flex bg-white/5 border border-brand-border backdrop-blur-md rounded-xl p-1 relative shadow-sm">
+                            <div className="flex bg-white/5 border border-brand-border rounded-xl p-1 relative shadow-sm">
                               {(['ZOOM', 'MEET'] as const).map((p) => (
                                 <button
                                   key={p}
@@ -1960,7 +2026,7 @@ export default function App() {
 
                           <div className="space-y-1.5">
                             <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Category</span>
-                            <div className="flex bg-white/5 border border-brand-border backdrop-blur-md rounded-xl p-1 relative shadow-sm">
+                            <div className="flex bg-white/5 border border-brand-border rounded-xl p-1 relative shadow-sm">
                               {(['qna-sessions-aig', 'live-sessions-aig'] as const).map((c) => (
                                 <button
                                   key={c}
@@ -2003,7 +2069,7 @@ export default function App() {
                                     value={slot.sessionLink}
                                     onChange={(e) => updateTimeSlot(slot.id, 'sessionLink', e.target.value)}
                                     placeholder="https://..."
-                                    className="w-full bg-white/5 border border-brand-border backdrop-blur-md rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                                    className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
                                   />
                                 </motion.div>
                               ) : (
@@ -2024,7 +2090,7 @@ export default function App() {
                                       value={slot.saturdayLink}
                                       onChange={(e) => updateTimeSlot(slot.id, 'saturdayLink', e.target.value)}
                                       placeholder="https://..."
-                                      className="w-full bg-white/5 border border-brand-border backdrop-blur-md rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                                      className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
                                     />
                                   </div>
                                   <div className="space-y-1.5">
@@ -2037,7 +2103,7 @@ export default function App() {
                                       value={slot.sundayLink}
                                       onChange={(e) => updateTimeSlot(slot.id, 'sundayLink', e.target.value)}
                                       placeholder="https://..."
-                                      className="w-full bg-white/5 border border-brand-border backdrop-blur-md rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                                      className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
                                     />
                                   </div>
                                 </motion.div>
@@ -2227,7 +2293,7 @@ export default function App() {
                               value={slot.courseGroup}
                               onChange={(e) => updateTimeSlot(slot.id, 'courseGroup', e.target.value)}
                               placeholder="Group Name..."
-                              className="w-full bg-white/5 border border-brand-border backdrop-blur-md rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                              className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
                             />
                           </div>
                         </div>
@@ -2400,7 +2466,7 @@ export default function App() {
                 ) : (
                   <div className="h-full overflow-y-auto custom-scrollbar">
                     <table className="w-full text-left border-collapse">
-                      <thead className="sticky top-0 bg-black/40 backdrop-blur-md border-b border-brand-border z-10">
+                      <thead className="sticky top-0 bg-black/40 border-b border-brand-border z-10">
                         <tr>
                           <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">#</th>
                           <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Title</th>
