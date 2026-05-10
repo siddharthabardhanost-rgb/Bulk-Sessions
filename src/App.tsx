@@ -152,14 +152,14 @@ const SearchableInput = ({
             }}
             onFocus={() => setIsOpen(true)}
             placeholder={isMandatory ? `${placeholder}*...` : `${placeholder}...`}
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500/50 transition-all text-slate-700 placeholder:text-slate-300"
+            className="w-full bg-white/[0.05] border border-brand-border rounded-xl px-3 py-2.5 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500"
           />
-          <Search size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none" />
+          <Search size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
         </div>
         {showRemove && (
           <button 
             onClick={onRemove}
-            className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+            className="p-2.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all"
           >
             <Trash2 size={14} />
           </button>
@@ -172,7 +172,7 @@ const SearchableInput = ({
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 5 }}
-            className="absolute z-50 w-full mt-2 bg-white border border-slate-100 rounded-xl shadow-xl max-h-40 overflow-y-auto custom-scrollbar p-1"
+            className="absolute z-50 w-full mt-2 bg-white/5 border border-brand-border backdrop-blur-md rounded-xl shadow-xl max-h-40 overflow-y-auto custom-scrollbar p-1"
           >
             {filteredOptions.length > 0 ? (
               <div className="space-y-0.5">
@@ -184,10 +184,10 @@ const SearchableInput = ({
                       onChange(opt);
                       setIsOpen(false);
                     }}
-                    className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 rounded-lg transition-colors flex items-center justify-between group"
+                    className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-white/[0.05] rounded-lg transition-colors flex items-center justify-between group"
                   >
                     {opt}
-                    <ChevronRight size={10} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-all" />
+                    <ChevronRight size={10} className="text-slate-500 opacity-0 group-hover:opacity-100 transition-all" />
                   </button>
                 ))}
               </div>
@@ -298,11 +298,11 @@ const CustomDatePicker = ({
 
   return (
     <div className="space-y-1.5 relative" ref={popoverRef}>
-      <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wide">{label}</span>
+      <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">{label}</span>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500/50 transition-all text-slate-700 hover:bg-white hover:border-slate-300"
+        className="w-full flex items-center justify-between bg-white/[0.05] border border-brand-border rounded-2xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 hover:bg-white/5 hover:border-slate-300"
       >
         <span className="font-semibold">{format(selectedDate, 'MMM d, yyyy')}</span>
         <Calendar size={16} className="text-slate-400" />
@@ -315,25 +315,25 @@ const CustomDatePicker = ({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
             transition={{ duration: 0.15 }}
-            className="absolute top-full left-0 mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl z-[100] p-4 overflow-hidden"
+            className="absolute top-full left-0 mt-2 w-72 bg-white/5 border border-brand-border backdrop-blur-md rounded-2xl shadow-xl z-[100] p-4 overflow-hidden"
           >
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-bold text-slate-800">
+              <h3 className="text-sm font-bold text-slate-100">
                 {format(viewDate, 'MMMM yyyy')}
               </h3>
               <div className="flex gap-1">
                 <button 
                   type="button"
                   onClick={prevMonth}
-                  className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"
+                  className="p-1.5 hover:bg-white/[0.1] rounded-lg text-slate-400 transition-colors"
                 >
                   <ChevronLeft size={16} />
                 </button>
                 <button 
                   type="button"
                   onClick={nextMonth}
-                  className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"
+                  className="p-1.5 hover:bg-white/[0.1] rounded-lg text-slate-400 transition-colors"
                 >
                   <ChevronRight size={16} />
                 </button>
@@ -374,14 +374,14 @@ const CustomDatePicker = ({
                     onClick={() => handleDateClick(date)}
                     className={`
                       relative h-9 w-full rounded-lg text-xs transition-all flex items-center justify-center
-                      ${!isCurrentMonth ? 'text-slate-300' : 'text-slate-600'}
-                      ${isSelected ? 'bg-slate-900 text-white font-bold shadow-md z-10' : 'hover:bg-slate-50'}
-                      ${isInRange && !isSelected ? 'bg-indigo-50 text-indigo-700 font-medium' : ''}
+                      ${!isCurrentMonth ? 'text-slate-500' : 'text-slate-500'}
+                      ${isSelected ? 'bg-brand-accent-violet text-white font-bold shadow-md z-10' : 'hover:bg-white/[0.05]'}
+                      ${isInRange && !isSelected ? 'bg-brand-accent-violet/10 text-indigo-700 font-medium' : ''}
                     `}
                   >
                     <span className="relative z-10">{format(date, 'd')}</span>
                     {isTodayDate && !isSelected && (
-                      <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-indigo-500 rounded-full" />
+                      <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-brand-accent-violet rounded-full" />
                     )}
                   </button>
                 );
@@ -424,21 +424,21 @@ const SortableSession = ({ session, phaseId, onRename, onDelete }: {
     <div
       ref={setNodeRef}
       style={style}
-      className="group flex items-center gap-3 bg-white border border-slate-200 rounded-xl p-2 hover:border-indigo-200 transition-all shadow-sm"
+      className="group flex items-center gap-3 bg-white/5 border border-brand-border backdrop-blur-md rounded-xl p-2 hover:border-brand-accent-teal/40 transition-all shadow-sm"
     >
-      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 p-1">
+      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-slate-500 hover:text-slate-400 p-1">
         <Map size={14} />
       </div>
       <input
         type="text"
         value={session.title}
         onChange={(e) => onRename(phaseId, session.id, e.target.value)}
-        className="flex-1 min-w-0 bg-transparent border-none text-xs font-semibold text-slate-700 focus:outline-none focus:ring-0 p-0 text-ellipsis"
+        className="flex-1 min-w-0 bg-transparent border-none text-xs font-semibold text-slate-200 focus:outline-none focus:ring-0 p-0 text-ellipsis"
         placeholder="Session Title..."
       />
       <button
         onClick={() => onDelete(phaseId, session.id)}
-        className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-rose-500 transition-all"
+        className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-rose-400 transition-all"
       >
         <Trash2 size={14} />
       </button>
@@ -471,14 +471,14 @@ const SortablePhase = ({ phase, onRenameSession, onDeleteSession, onAddSession, 
     <div 
       ref={setNodeRef}
       style={style}
-      className={`bg-slate-50/50 border ${isDragging ? 'border-indigo-400 shadow-md ring-2 ring-indigo-500/20' : 'border-slate-200'} rounded-2xl p-4 space-y-4`}
+      className={`bg-white/[0.03] border ${isDragging ? 'border-indigo-400 shadow-md ring-2 ring-brand-accent-violet/40' : 'border-brand-border'} rounded-2xl p-4 space-y-4`}
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <button 
             {...attributes} 
             {...listeners}
-            className="cursor-move p-1 -ml-1 text-slate-300 hover:text-indigo-500 hover:bg-slate-100 rounded transition-colors touch-none shrink-0"
+            className="cursor-move p-1 -ml-1 text-slate-500 hover:text-brand-accent-violet hover:bg-white/[0.1] rounded transition-colors touch-none shrink-0"
           >
             <GripVertical size={14} />
           </button>
@@ -490,14 +490,14 @@ const SortablePhase = ({ phase, onRenameSession, onDeleteSession, onAddSession, 
             onKeyDown={(e) => {
               if (e.key === ' ' || e.key === 'Enter') e.stopPropagation();
             }}
-            className="flex-1 min-w-[120px] bg-transparent border border-transparent hover:border-slate-300 focus:bg-white focus:border-indigo-400 text-xs font-bold text-slate-700 uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-indigo-500/20 px-2 py-1 rounded transition-all m-0"
+            className="flex-1 min-w-[120px] bg-transparent border border-transparent hover:border-slate-300 focus:bg-white/5 focus:border-indigo-400 text-xs font-bold text-slate-200 uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-brand-accent-violet/40 px-2 py-1 rounded transition-all m-0"
             placeholder="Phase Name"
           />
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => onAddSession(phase.id)}
-            className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 transition-colors bg-indigo-50 px-2 py-1 rounded-lg"
+            className="flex items-center gap-1.5 text-[10px] font-bold text-brand-accent-teal hover:text-indigo-700 transition-colors bg-brand-accent-violet/10 px-2 py-1 rounded-lg"
           >
             <Plus size={12} />
             Add Session
@@ -508,7 +508,7 @@ const SortablePhase = ({ phase, onRenameSession, onDeleteSession, onAddSession, 
               // A better approach would be an inline confirm state, but this works for now.
               onDeletePhase(phase.id);
             }}
-            className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-colors"
+            className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
           >
             <Trash2 size={14} />
           </button>
@@ -527,7 +527,7 @@ const SortablePhase = ({ phase, onRenameSession, onDeleteSession, onAddSession, 
             />
           ))}
           {phase.sessions.length === 0 && (
-            <div className="text-center py-4 border border-dashed border-slate-200 rounded-xl">
+            <div className="text-center py-4 border border-dashed border-brand-border rounded-xl">
               <p className="text-[10px] text-slate-400 font-medium italic">No sessions in this phase</p>
             </div>
           )}
@@ -550,7 +550,7 @@ export default function App() {
       endTime: '20:30',
       tueThuStartTime: '18:30',
       tueThuEndTime: '21:30',
-      tueThuTitle: 'Open Mic Q&A',
+      tueThuTitle: 'Open Mic Q&A Session',
       title: 'Q&A session',
       description: '',
       sessionLink: '',
@@ -832,7 +832,7 @@ export default function App() {
         endTime: '20:30',
         tueThuStartTime: '18:30',
         tueThuEndTime: '21:30',
-        tueThuTitle: 'Open Mic Q&A',
+        tueThuTitle: 'Open Mic Q&A Session',
         title: 'Q&A session',
         description: '',
         sessionLink: '',
@@ -960,7 +960,7 @@ export default function App() {
       endTime: '10:00',
       tueThuStartTime: '09:00',
       tueThuEndTime: '10:00',
-      tueThuTitle: 'Open Mic Q&A',
+      tueThuTitle: 'Open Mic Q&A Session',
       title: 'Q&A session',
       description: '',
       sessionLink: '',
@@ -1098,14 +1098,14 @@ export default function App() {
     return (
       <div className="space-y-1.5">
         <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">{label}</span>
-        <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm focus-within:ring-4 focus-within:ring-indigo-500/5 focus-within:border-indigo-500/50 transition-all">
+        <div className="flex items-center gap-1.5 bg-white/5 border border-brand-border backdrop-blur-md rounded-xl px-3 py-2 shadow-sm  focus-within:ring-brand-accent-violet/20 focus-within:border-brand-accent-violet/50 transition-all">
           
           {/* Hour Selector */}
           <div className="relative" ref={hourRef}>
             <button 
               type="button"
               onClick={() => { setIsHourOpen(!isHourOpen); setIsMinuteOpen(false); }}
-              className="text-sm font-semibold focus:outline-none cursor-pointer text-slate-700 hover:text-indigo-600 transition-colors min-w-[24px] text-center"
+              className="text-sm font-semibold focus:outline-none cursor-pointer text-slate-200 hover:text-brand-accent-teal transition-colors min-w-[24px] text-center"
             >
               {h12}
             </button>
@@ -1116,7 +1116,7 @@ export default function App() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 8 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-32 bg-white border border-slate-200 rounded-xl shadow-xl z-[100] p-2 grid grid-cols-3 gap-1"
+                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-32 bg-white/5 border border-brand-border backdrop-blur-md rounded-xl shadow-xl z-[100] p-2 grid grid-cols-3 gap-1"
                 >
                   {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
                     <button
@@ -1125,8 +1125,8 @@ export default function App() {
                       onClick={() => { updateTime(h, m, period); setIsHourOpen(false); }}
                       className={`h-9 rounded-lg text-xs transition-all flex items-center justify-center ${
                         h12 === h 
-                          ? 'bg-slate-900 text-white font-bold shadow-md' 
-                          : 'text-slate-500 hover:bg-slate-50 hover:text-indigo-600'
+                          ? 'bg-brand-accent-violet text-white font-bold shadow-md' 
+                          : 'text-slate-400 hover:bg-brand-accent-teal/10 hover:text-brand-accent-teal'
                       }`}
                     >
                       {h}
@@ -1137,14 +1137,14 @@ export default function App() {
             </AnimatePresence>
           </div>
 
-          <span className="text-slate-300 font-bold">:</span>
+          <span className="text-slate-500 font-bold">:</span>
 
           {/* Minute Selector */}
           <div className="relative" ref={minuteRef}>
             <button 
               type="button"
               onClick={() => { setIsMinuteOpen(!isMinuteOpen); setIsHourOpen(false); }}
-              className="text-sm font-semibold focus:outline-none cursor-pointer text-slate-700 hover:text-indigo-600 transition-colors min-w-[24px] text-center"
+              className="text-sm font-semibold focus:outline-none cursor-pointer text-slate-200 hover:text-brand-accent-teal transition-colors min-w-[24px] text-center"
             >
               {m.toString().padStart(2, '0')}
             </button>
@@ -1155,7 +1155,7 @@ export default function App() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 8 }}
                   transition={{ duration: 0.15 }}
-                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-[100] p-2 grid grid-cols-5 gap-1 max-h-[240px] overflow-y-auto custom-scrollbar"
+                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-white/5 border border-brand-border backdrop-blur-md rounded-xl shadow-xl z-[100] p-2 grid grid-cols-5 gap-1 max-h-[240px] overflow-y-auto custom-scrollbar"
                 >
                   {Array.from({ length: 60 }, (_, i) => i).map(min => (
                     <button
@@ -1164,8 +1164,8 @@ export default function App() {
                       onClick={() => { updateTime(h12, min, period); setIsMinuteOpen(false); }}
                       className={`h-8 rounded-lg text-[10px] transition-all flex items-center justify-center ${
                         m === min 
-                          ? 'bg-slate-900 text-white font-bold shadow-md' 
-                          : 'text-slate-500 hover:bg-slate-50 hover:text-indigo-600'
+                          ? 'bg-brand-accent-violet text-white font-bold shadow-md' 
+                          : 'text-slate-400 hover:bg-brand-accent-teal/10 hover:text-brand-accent-teal'
                       }`}
                     >
                       {min.toString().padStart(2, '0')}
@@ -1179,7 +1179,7 @@ export default function App() {
           <button 
             type="button"
             onClick={() => updateTime(h12, m, period === 'AM' ? 'PM' : 'AM')}
-            className="ml-1 px-2.5 py-1 bg-slate-100 rounded-lg text-[10px] font-bold text-slate-600 hover:bg-indigo-600 hover:text-white transition-all uppercase tracking-tight"
+            className="ml-1 px-2.5 py-1 bg-white/[0.1] rounded-lg text-[10px] font-bold text-slate-500 hover:bg-gradient-to-r from-brand-accent-violet to-brand-accent-teal border-none shadow-glow text-white hover:text-white transition-all uppercase tracking-tight"
           >
             {period}
           </button>
@@ -1440,15 +1440,46 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 font-sans selection:bg-indigo-100 selection:text-indigo-900">
-      <div className="max-w-[1800px] mx-auto px-6 py-8 md:py-12 space-y-8">
+    <div className="min-h-screen bg-brand-bg relative overflow-hidden text-white font-sans selection:bg-brand-accent-teal/30 selection:text-brand-accent-teal">
+      {/* Decorative Holographic Lines Background */}
+      <div className="absolute inset-0 z-0 pointer-events-none opacity-20 flex items-center justify-center mix-blend-screen h-[50vh]">
+        <svg width="100%" height="100%" viewBox="0 0 1000 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M0,250 Q100,100 200,250 T400,250 T600,250 T800,250 T1000,250" stroke="url(#gradient)" strokeWidth="2" fill="transparent" />
+          <path d="M0,200 Q200,400 300,200 T500,200 T700,200 T900,200 T1000,200" stroke="url(#gradient)" strokeWidth="1" fill="transparent" />
+          <path d="M0,300 Q150,50 250,300 T450,300 T650,300 T850,300 T1000,300" stroke="url(#gradient)" strokeWidth="1.5" fill="transparent" />
+          <circle cx="200" cy="250" r="4" fill="#8b5cf6" filter="url(#glow)" />
+          <circle cx="400" cy="250" r="3" fill="#06b6d4" filter="url(#glow)" />
+          <circle cx="600" cy="250" r="5" fill="#8b5cf6" filter="url(#glow)" />
+          <circle cx="800" cy="250" r="2" fill="#06b6d4" filter="url(#glow)" />
+          <circle cx="300" cy="200" r="4" fill="#06b6d4" filter="url(#glow)" />
+          <circle cx="700" cy="200" r="4" fill="#8b5cf6" filter="url(#glow)" />
+          <circle cx="250" cy="300" r="3" fill="#8b5cf6" filter="url(#glow)" />
+          <circle cx="650" cy="300" r="3" fill="#06b6d4" filter="url(#glow)" />
+          
+          <defs>
+            <linearGradient id="gradient" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.2"/>
+              <stop offset="50%" stopColor="#06b6d4" stopOpacity="0.8"/>
+              <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.2"/>
+            </linearGradient>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+        </svg>
+      </div>
+      <div className="max-w-[1800px] mx-auto px-6 py-8 md:py-12 space-y-8 relative z-10">
         {/* Header */}
-        <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white rounded-[2.5rem] p-8 shadow-sm border border-slate-100">
+        <header className="flex flex-col md:flex-row items-center justify-between gap-6 glass-card p-8 border border-white/10">
             <div className="space-y-2 text-center md:text-left">
               <motion.div 
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
-                className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-full text-[10px] font-bold uppercase tracking-widest"
+                className="inline-flex items-center gap-2 px-3 py-1 bg-brand-accent-violet/10 text-brand-accent-teal rounded-full text-[10px] font-bold uppercase tracking-widest"
               >
                 <Sparkles size={12} />
                 <span>Professional Scheduler</span>
@@ -1457,9 +1488,9 @@ export default function App() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="text-4xl font-extrabold tracking-tight text-slate-900 font-display"
+                className="text-4xl font-extrabold tracking-tight text-white font-display"
               >
-                Session <span className="text-indigo-600">Scheduler</span>
+                Session <span className="text-brand-accent-teal">Scheduler</span>
               </motion.h1>
               <motion.p 
                 initial={{ opacity: 0 }}
@@ -1472,11 +1503,11 @@ export default function App() {
             </div>
             
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2.5 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100">
+              <div className="flex items-center gap-2.5 px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-2xl border border-emerald-500/20">
                 <CheckCircle2 size={14} />
                 <span className="text-[10px] font-bold uppercase tracking-wider">All Systems Operational</span>
               </div>
-              <div className="px-4 py-2 bg-slate-50 text-slate-400 rounded-2xl border border-slate-100">
+              <div className="px-4 py-2 bg-white/[0.05] text-slate-400 rounded-2xl border border-brand-border">
                 <span className="text-[10px] font-bold uppercase tracking-wider">Asia/Kolkata Time</span>
               </div>
             </div>
@@ -1488,21 +1519,21 @@ export default function App() {
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="p-5 bg-indigo-50 border border-indigo-100 rounded-[2rem] flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm"
+              className="p-5 bg-brand-accent-violet/10 border border-indigo-100 rounded-[2rem] flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm"
             >
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-white flex items-center justify-center text-indigo-600 shadow-sm">
+                <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center text-brand-accent-teal shadow-sm">
                   <History size={24} />
                 </div>
                 <div>
                   <p className="text-sm font-bold text-indigo-900">You have a previously generated schedule available.</p>
-                  <p className="text-xs text-indigo-600/70 font-medium">Last generated: {lastGeneratedTime}</p>
+                  <p className="text-xs text-brand-accent-teal/70 font-medium">Last generated: {lastGeneratedTime}</p>
                 </div>
               </div>
               <div className="flex gap-3 w-full sm:w-auto">
                 <button 
                   onClick={restoreLastSchedule}
-                  className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl text-xs font-bold transition-all shadow-lg shadow-indigo-100 active:scale-95"
+                  className="flex-1 sm:flex-none bg-gradient-to-r from-brand-accent-violet to-brand-accent-teal border-none shadow-glow text-white hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl text-xs font-bold transition-all shadow-lg shadow-indigo-100 active:scale-95"
                 >
                   Restore Last Generated
                 </button>
@@ -1511,7 +1542,7 @@ export default function App() {
                     localStorage.removeItem('saved_schedule_data');
                     setHasSavedData(false);
                   }}
-                  className="flex-1 sm:flex-none bg-white border border-indigo-200 text-indigo-600 px-6 py-3 rounded-2xl text-xs font-bold hover:bg-indigo-100 transition-all active:scale-95"
+                  className="flex-1 sm:flex-none bg-white/5 border border-brand-accent-teal/40 text-brand-accent-teal px-6 py-3 rounded-2xl text-xs font-bold hover:bg-indigo-100 transition-all active:scale-95"
                 >
                   Dismiss
                 </button>
@@ -1523,12 +1554,12 @@ export default function App() {
         <div className="flex flex-col gap-10 items-stretch">
           {/* Controls Panel */}
           <div className="space-y-8">
-            <section className="bg-white rounded-3xl p-8 shadow-soft border border-slate-100 space-y-8">
+            <section className="glass-card p-8 border border-white/10 space-y-8">
               {/* Date Range */}
               <div className="space-y-5">
                 <div className="flex items-center justify-between">
                   <label className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400 flex items-center gap-2.5">
-                    <Calendar size={14} className="text-indigo-500" />
+                    <Calendar size={14} className="text-brand-accent-violet" />
                     Date Range
                   </label>
                   
@@ -1538,8 +1569,8 @@ export default function App() {
                       onClick={() => handleQuickSelect('this-month')}
                       className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all border ${
                         isThisMonthActive 
-                          ? 'bg-indigo-50 text-indigo-600 border-indigo-200' 
-                          : 'bg-slate-50 text-slate-500 border-transparent hover:bg-slate-100'
+                          ? 'bg-brand-accent-violet/10 text-brand-accent-teal border-brand-accent-teal/40' 
+                          : 'bg-white/[0.05] text-slate-400 border-transparent hover:bg-white/[0.1]'
                       }`}
                     >
                       This Month
@@ -1548,8 +1579,8 @@ export default function App() {
                       onClick={() => handleQuickSelect('next-month')}
                       className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all border ${
                         isNextMonthActive 
-                          ? 'bg-indigo-50 text-indigo-600 border-indigo-200' 
-                          : 'bg-slate-50 text-slate-500 border-transparent hover:bg-slate-100'
+                          ? 'bg-brand-accent-violet/10 text-brand-accent-teal border-brand-accent-teal/40' 
+                          : 'bg-white/[0.05] text-slate-400 border-transparent hover:bg-white/[0.1]'
                       }`}
                     >
                       Next Month
@@ -1558,8 +1589,8 @@ export default function App() {
                       onClick={() => handleQuickSelect('next-90-days')}
                       className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all border ${
                         isNext90DaysActive 
-                          ? 'bg-indigo-50 text-indigo-600 border-indigo-200' 
-                          : 'bg-slate-50 text-slate-500 border-transparent hover:bg-slate-100'
+                          ? 'bg-brand-accent-violet/10 text-brand-accent-teal border-brand-accent-teal/40' 
+                          : 'bg-white/[0.05] text-slate-400 border-transparent hover:bg-white/[0.1]'
                       }`}
                     >
                       Next 90 Days
@@ -1587,10 +1618,10 @@ export default function App() {
               {/* Day Selection */}
               <div className="space-y-5">
                 <label className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400 flex items-center gap-2.5">
-                  <ChevronRight size={14} className="text-indigo-500" />
+                  <ChevronRight size={14} className="text-brand-accent-violet" />
                   Day Selection
                 </label>
-                <div className="flex bg-slate-50 p-1 rounded-2xl border border-slate-100 relative overflow-hidden">
+                <div className="flex bg-white/[0.05] p-1 rounded-2xl border border-brand-border relative overflow-hidden">
                   {(['weekdays', 'weekends', 'custom'] as DayOption[]).map((option) => (
                     <button
                       key={option}
@@ -1598,13 +1629,13 @@ export default function App() {
                       className={`relative z-10 flex-1 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${
                         dayOption === option 
                           ? 'text-white' 
-                          : 'text-slate-500 hover:text-slate-700'
+                          : 'text-slate-400 hover:text-slate-200'
                       }`}
                     >
                       {dayOption === option && (
                         <motion.div 
                           layoutId="dayOptionBg"
-                          className="absolute inset-0 bg-slate-900 rounded-xl -z-10 shadow-lg"
+                          className="absolute inset-0 bg-brand-accent-violet text-white rounded-xl -z-10 shadow-lg"
                           transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                         />
                       )}
@@ -1627,8 +1658,8 @@ export default function App() {
                           onClick={() => toggleCustomDay(day.value)}
                           className={`w-11 h-11 rounded-2xl text-[11px] font-bold transition-all flex items-center justify-center border-2 ${
                             customDays.includes(day.value)
-                              ? 'bg-indigo-50 border-indigo-500 text-indigo-600 shadow-sm'
-                              : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
+                              ? 'bg-brand-accent-violet/10 border-indigo-500 text-brand-accent-teal shadow-sm'
+                              : 'bg-white/5 border-brand-border text-slate-400 hover:border-brand-border'
                           }`}
                         >
                           {day.label}
@@ -1640,15 +1671,15 @@ export default function App() {
               </div>
 
               {/* Curriculum Manager UI Component */}
-              <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden mb-8">
-                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="bg-white/5 rounded-3xl shadow-sm border border-brand-border overflow-hidden mb-8">
+                <div className="p-6 border-b border-brand-border flex items-center justify-between bg-white/[0.03]">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+                    <div className="w-10 h-10 rounded-2xl bg-brand-accent-violet/10 flex items-center justify-center text-brand-accent-teal">
                       <Database size={20} />
                     </div>
                     <div>
-                      <h2 className="text-lg font-bold text-slate-900">Curriculum Manager</h2>
-                      <p className="text-xs text-slate-500">Edit sessions, phases, and map Course IDs</p>
+                      <h2 className="text-lg font-bold text-white">Curriculum Manager</h2>
+                      <p className="text-xs text-slate-400">Edit sessions, phases, and map Course IDs</p>
                     </div>
                   </div>
                 </div>
@@ -1656,19 +1687,19 @@ export default function App() {
                 <div className="p-6 space-y-8">
                   {/* Phase-wise Course ID Mapping Grid */}
                   <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                      <Sparkles size={16} className="text-indigo-500" />
+                    <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+                      <Sparkles size={16} className="text-brand-accent-violet" />
                       Phase-Wise Course ID Mapping
                     </h3>
                     {currentActiveBatches.length === 0 ? (
-                      <div className="text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                      <div className="text-center py-6 bg-white/[0.05] rounded-2xl border border-dashed border-brand-border">
                         <p className="text-xs text-slate-400">Add batches to see mapping options</p>
                       </div>
                     ) : (
                       <div className="space-y-6">
                         {currentActiveBatches.map(batch => (
-                          <div key={batch} className="space-y-3 bg-slate-50/50 p-4 rounded-2xl border border-slate-100">
-                            <h4 className="text-xs font-bold text-slate-600 flex items-center gap-2">
+                          <div key={batch} className="space-y-3 bg-white/[0.03] p-4 rounded-2xl border border-brand-border">
+                            <h4 className="text-xs font-bold text-slate-500 flex items-center gap-2">
                               <Users size={14} />
                               {batch}
                             </h4>
@@ -1683,7 +1714,7 @@ export default function App() {
                                     value={blueprint.batchPhaseIds[batch]?.[phase.id] || ''}
                                     onChange={(e) => updateBlueprintBatchId(batch, phase.id, e.target.value)}
                                     placeholder={`${phase.name} ID for ${batch}`}
-                                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500/50 transition-all text-slate-700 placeholder:text-slate-300 shadow-sm"
+                                    className="w-full bg-white/5 border border-brand-border backdrop-blur-md rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
                                   />
                                 </div>
                               ))}
@@ -1697,13 +1728,13 @@ export default function App() {
                   {/* Editable Titles & Drag-and-Drop Grouping */}
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                        <Layers size={16} className="text-indigo-500" />
+                      <h3 className="text-sm font-bold text-slate-200 flex items-center gap-2">
+                        <Layers size={16} className="text-brand-accent-violet" />
                         Session Titles & Phase Grouping
                       </h3>
                       <button
                         onClick={addPhase}
-                        className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-white transition-colors border border-indigo-200 hover:bg-indigo-600 px-3 py-1.5 rounded-lg shadow-sm"
+                        className="flex items-center gap-1.5 text-xs font-bold text-brand-accent-teal hover:text-white transition-colors border border-brand-accent-teal/40 hover:bg-gradient-to-r from-brand-accent-violet to-brand-accent-teal border-none shadow-glow text-white px-3 py-1.5 rounded-lg shadow-sm"
                       >
                         <Plus size={14} />
                         Add Phase
@@ -1738,12 +1769,12 @@ export default function App() {
               <div className="space-y-5">
                 <div className="flex items-center justify-between">
                   <label className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400 flex items-center gap-2.5">
-                    <Clock size={14} className="text-indigo-500" />
+                    <Clock size={14} className="text-brand-accent-violet" />
                     Time Slots (IST)
                   </label>
                   <button 
                     onClick={addTimeSlot}
-                    className="p-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 hover:scale-110 active:scale-95 transition-all shadow-md shadow-indigo-200"
+                    className="p-2 bg-gradient-to-r from-brand-accent-violet to-brand-accent-teal border-none shadow-glow text-white rounded-xl hover:bg-indigo-700 hover:scale-110 active:scale-95 transition-all shadow-md shadow-indigo-200"
                   >
                     <Plus size={16} />
                   </button>
@@ -1763,11 +1794,11 @@ export default function App() {
                           onClick={() => setSelectedSlotId(slot.id)}
                           className={`px-4 py-3 rounded-2xl text-xs font-bold transition-all border-2 flex items-center gap-3 ${
                             selectedSlotId === slot.id
-                              ? 'bg-indigo-50 border-indigo-500 text-indigo-600 shadow-sm'
-                              : 'bg-white border-slate-100 text-slate-400 hover:border-slate-200'
+                              ? 'bg-brand-accent-violet/10 border-indigo-500 text-brand-accent-teal shadow-sm'
+                              : 'bg-white/5 border-brand-border text-slate-400 hover:border-brand-border'
                           }`}
                         >
-                          <div className={`w-2 h-2 rounded-full ${selectedSlotId === slot.id ? 'bg-indigo-500 animate-pulse' : 'bg-slate-200'}`} />
+                          <div className={`w-2 h-2 rounded-full ${selectedSlotId === slot.id ? 'bg-brand-accent-violet animate-pulse' : 'bg-white/20'}`} />
                           Slot {index + 1}: {slot.category === 'live-sessions-aig' ? `Sat ${slot.startTime} / Sun ${slot.sundayStartTime || slot.startTime}` : slot.startTime}
                         </button>
                         {timeSlots.length > 1 && (
@@ -1776,7 +1807,7 @@ export default function App() {
                               e.stopPropagation();
                               removeTimeSlot(slot.id);
                             }}
-                            className="absolute -top-2 -right-2 w-6 h-6 bg-white border border-slate-200 text-slate-400 rounded-full flex items-center justify-center hover:bg-rose-50 hover:text-rose-500 hover:border-rose-200 transition-all opacity-0 group-hover:opacity-100 shadow-sm z-20"
+                            className="absolute -top-2 -right-2 w-6 h-6 bg-white/5 border border-brand-border backdrop-blur-md text-slate-400 rounded-full flex items-center justify-center hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/30 transition-all opacity-0 group-hover:opacity-100 shadow-sm z-20"
                           >
                             <X size={12} />
                           </button>
@@ -1795,18 +1826,18 @@ export default function App() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="bg-slate-50/50 rounded-3xl p-6 border border-slate-100 space-y-6"
+                    className="bg-white/[0.03] rounded-3xl p-6 border border-brand-border space-y-6"
                   >
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                    <div className="flex items-center justify-between border-b border-brand-border pb-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600">
+                        <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center text-brand-accent-teal">
                           <Zap size={16} />
                         </div>
-                        <h3 className="text-sm font-bold text-slate-700">
+                        <h3 className="text-sm font-bold text-slate-200">
                           Slot Configuration
                         </h3>
                       </div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-slate-100">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full border border-brand-border">
                         Active
                       </span>
                     </div>
@@ -1850,7 +1881,7 @@ export default function App() {
                             </>
                           ) : (
                             <>
-                              <div className="col-span-2 space-y-3 p-4 bg-slate-50/50 rounded-2xl border border-slate-100">
+                              <div className="col-span-2 space-y-3 p-4 bg-white/[0.03] rounded-2xl border border-brand-border">
                                 <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Mon/Wed/Fri &amp; Weekends</span>
                                 <div className="space-y-4">
                                   <div className="grid grid-cols-2 gap-4">
@@ -1870,12 +1901,12 @@ export default function App() {
                                     value={slot.title}
                                     onChange={(e) => updateTimeSlot(slot.id, 'title', e.target.value)}
                                     placeholder="Mon/Wed/Fri Session Title..."
-                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500/50 transition-all text-slate-700 placeholder:text-slate-300 shadow-sm"
+                                    className="w-full bg-white/5 border border-brand-border backdrop-blur-md rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
                                   />
                                 </div>
                               </div>
-                              <div className="col-span-2 space-y-3 p-4 bg-indigo-50/30 rounded-2xl border border-indigo-100/50">
-                                <span className="text-[10px] text-indigo-400 uppercase font-bold tracking-wide">Tue/Thu Overrides</span>
+                              <div className="col-span-2 space-y-3 p-4 bg-brand-accent-teal/10 rounded-2xl border border-brand-accent-teal/20">
+                                <span className="text-[10px] text-brand-accent-teal uppercase font-bold tracking-wide">Tue/Thu Overrides</span>
                                 <div className="space-y-4">
                                   <div className="grid grid-cols-2 gap-4">
                                     <TimeInput12h 
@@ -1894,7 +1925,7 @@ export default function App() {
                                     value={slot.tueThuTitle || slot.title}
                                     onChange={(e) => updateTimeSlot(slot.id, 'tueThuTitle', e.target.value)}
                                     placeholder="Tue/Thu Session Title..."
-                                    className="w-full bg-white border border-indigo-200/50 rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500/50 transition-all text-slate-700 placeholder:text-indigo-300 shadow-sm"
+                                    className="w-full bg-white/5 border border-brand-accent-teal/30 rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-indigo-300 shadow-sm"
                                   />
                                 </div>
                               </div>
@@ -1903,7 +1934,7 @@ export default function App() {
 
                           <div className="space-y-1.5">
                             <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Platform</span>
-                            <div className="flex bg-white border border-slate-200 rounded-xl p-1 relative shadow-sm">
+                            <div className="flex bg-white/5 border border-brand-border backdrop-blur-md rounded-xl p-1 relative shadow-sm">
                               {(['ZOOM', 'MEET'] as const).map((p) => (
                                 <button
                                   key={p}
@@ -1911,13 +1942,13 @@ export default function App() {
                                   className={`relative z-10 flex-1 py-2 text-[10px] font-bold rounded-lg transition-all duration-300 ${
                                     slot.sessionPlatform === p 
                                       ? 'text-white' 
-                                      : 'text-slate-400 hover:text-slate-600'
+                                      : 'text-slate-400 hover:text-slate-500'
                                   }`}
                                 >
                                   {slot.sessionPlatform === p && (
                                     <motion.div 
                                       layoutId={`platformBg-${slot.id}`}
-                                      className="absolute inset-0 bg-slate-900 rounded-lg -z-10 shadow-md"
+                                      className="absolute inset-0 bg-brand-accent-violet text-white rounded-lg -z-10 shadow-md"
                                       transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                     />
                                   )}
@@ -1929,7 +1960,7 @@ export default function App() {
 
                           <div className="space-y-1.5">
                             <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Category</span>
-                            <div className="flex bg-white border border-slate-200 rounded-xl p-1 relative shadow-sm">
+                            <div className="flex bg-white/5 border border-brand-border backdrop-blur-md rounded-xl p-1 relative shadow-sm">
                               {(['qna-sessions-aig', 'live-sessions-aig'] as const).map((c) => (
                                 <button
                                   key={c}
@@ -1937,13 +1968,13 @@ export default function App() {
                                   className={`relative z-10 flex-1 py-2 text-[9px] font-bold rounded-lg transition-all duration-300 ${
                                     slot.category === c 
                                       ? 'text-white' 
-                                      : 'text-slate-400 hover:text-slate-600'
+                                      : 'text-slate-400 hover:text-slate-500'
                                   }`}
                                 >
                                   {slot.category === c && (
                                     <motion.div 
                                       layoutId={`categoryBg-${slot.id}`}
-                                      className="absolute inset-0 bg-slate-900 rounded-lg -z-10 shadow-md"
+                                      className="absolute inset-0 bg-brand-accent-violet text-white rounded-lg -z-10 shadow-md"
                                       transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                     />
                                   )}
@@ -1972,7 +2003,7 @@ export default function App() {
                                     value={slot.sessionLink}
                                     onChange={(e) => updateTimeSlot(slot.id, 'sessionLink', e.target.value)}
                                     placeholder="https://..."
-                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500/50 transition-all text-slate-700 placeholder:text-slate-300 shadow-sm"
+                                    className="w-full bg-white/5 border border-brand-border backdrop-blur-md rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
                                   />
                                 </motion.div>
                               ) : (
@@ -1993,7 +2024,7 @@ export default function App() {
                                       value={slot.saturdayLink}
                                       onChange={(e) => updateTimeSlot(slot.id, 'saturdayLink', e.target.value)}
                                       placeholder="https://..."
-                                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500/50 transition-all text-slate-700 placeholder:text-slate-300 shadow-sm"
+                                      className="w-full bg-white/5 border border-brand-border backdrop-blur-md rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
                                     />
                                   </div>
                                   <div className="space-y-1.5">
@@ -2006,7 +2037,7 @@ export default function App() {
                                       value={slot.sundayLink}
                                       onChange={(e) => updateTimeSlot(slot.id, 'sundayLink', e.target.value)}
                                       placeholder="https://..."
-                                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500/50 transition-all text-slate-700 placeholder:text-slate-300 shadow-sm"
+                                      className="w-full bg-white/5 border border-brand-border backdrop-blur-md rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
                                     />
                                   </div>
                                 </motion.div>
@@ -2024,7 +2055,7 @@ export default function App() {
                                 </span>
                                 <button 
                                   onClick={() => addInstructor(slot.id)}
-                                  className="flex items-center gap-1 text-[10px] font-bold text-indigo-500 hover:text-indigo-600 transition-colors"
+                                  className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
                                 >
                                   <Plus size={10} />
                                   Add Instructor
@@ -2048,17 +2079,17 @@ export default function App() {
 
                             {/* Q&A specific instructor fields */}
                             {slot.category === 'qna-sessions-aig' && (
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-brand-border">
                                 {/* Tuesday Instructors */}
                                 <div className="space-y-3">
                                   <div className="flex items-center justify-between">
-                                    <span className="text-[10px] text-indigo-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
+                                    <span className="text-[10px] text-brand-accent-teal uppercase font-bold tracking-wide flex items-center gap-1.5">
                                       <Users size={10} />
                                       Tue Instructors *
                                     </span>
                                     <button 
                                       onClick={() => updateTimeSlot(slot.id, 'instructorsTue', [...(slot.instructorsTue || []), ''])}
-                                      className="flex items-center gap-1 text-[10px] font-bold text-indigo-500 hover:text-indigo-600 transition-colors"
+                                      className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
                                     >
                                       <Plus size={10} />
                                       Add
@@ -2089,13 +2120,13 @@ export default function App() {
                                 {/* Thursday Instructors */}
                                 <div className="space-y-3">
                                   <div className="flex items-center justify-between">
-                                    <span className="text-[10px] text-indigo-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
+                                    <span className="text-[10px] text-brand-accent-teal uppercase font-bold tracking-wide flex items-center gap-1.5">
                                       <Users size={10} />
                                       Thu Instructors *
                                     </span>
                                     <button 
                                       onClick={() => updateTimeSlot(slot.id, 'instructorsThu', [...(slot.instructorsThu || []), ''])}
-                                      className="flex items-center gap-1 text-[10px] font-bold text-indigo-500 hover:text-indigo-600 transition-colors"
+                                      className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
                                     >
                                       <Plus size={10} />
                                       Add
@@ -2135,7 +2166,7 @@ export default function App() {
                               </span>
                               <button 
                                 onClick={() => addBatch(slot.id)}
-                                className="flex items-center gap-1 text-[10px] font-bold text-indigo-500 hover:text-indigo-600 transition-colors"
+                                className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
                               >
                                 <Plus size={10} />
                                 Add Batch
@@ -2166,7 +2197,7 @@ export default function App() {
                                 </span>
                                 <button 
                                   onClick={() => addCourse(slot.id)}
-                                  className="flex items-center gap-1 text-[10px] font-bold text-indigo-500 hover:text-indigo-600 transition-colors"
+                                  className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
                                 >
                                   <Plus size={10} />
                                   Add Course
@@ -2196,7 +2227,7 @@ export default function App() {
                               value={slot.courseGroup}
                               onChange={(e) => updateTimeSlot(slot.id, 'courseGroup', e.target.value)}
                               placeholder="Group Name..."
-                              className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-500/50 transition-all text-slate-700 placeholder:text-slate-300 shadow-sm"
+                              className="w-full bg-white/5 border border-brand-border backdrop-blur-md rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
                             />
                           </div>
                         </div>
@@ -2210,13 +2241,13 @@ export default function App() {
               <div className="space-y-4">
                 <div className="text-center">
                   <p className="text-xs text-slate-400 font-medium">
-                    This will generate <span className={`font-bold ${sessionCount === 0 ? 'text-red-500' : 'text-slate-600'}`}>{sessionCount}</span> total sessions based on your current settings.
+                    This will generate <span className={`font-bold ${sessionCount === 0 ? 'text-red-500' : 'text-slate-500'}`}>{sessionCount}</span> total sessions based on your current settings.
                   </p>
                 </div>
                 <button 
                   onClick={generateSchedule}
                   disabled={isGenerating}
-                  className="w-full bg-slate-900 text-white py-5 rounded-2xl font-bold text-sm shadow-indigo-soft hover:bg-black hover:-translate-y-0.5 active:translate-y-0 transition-all flex items-center justify-center gap-3 group relative overflow-hidden disabled:opacity-70 disabled:cursor-not-allowed"
+                  className="w-full bg-brand-accent-violet text-white py-5 rounded-2xl font-bold text-sm shadow-glow hover:bg-black hover:-translate-y-1 hover:shadow-glow-hover active:translate-y-0 transition-all flex items-center justify-center gap-3 group relative overflow-hidden disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                 {isGenerating ? (
                   <>
@@ -2225,7 +2256,7 @@ export default function App() {
                   </>
                 ) : (
                   <>
-                    <Sparkles size={18} className="text-indigo-400 group-hover:rotate-12 transition-transform" />
+                    <Sparkles size={18} className="text-brand-accent-teal group-hover:rotate-12 transition-transform" />
                     <span>Generate Schedule</span>
                     <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
                   </>
@@ -2246,27 +2277,27 @@ export default function App() {
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    className="mt-4 p-5 bg-rose-50 border border-rose-100 rounded-2xl flex flex-col gap-4 shadow-sm"
+                    className="mt-4 p-5 bg-rose-500/10 border border-rose-100 rounded-2xl flex flex-col gap-4 shadow-sm"
                   >
                     <div className="flex items-center gap-3 text-rose-800">
-                      <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-rose-600">
+                      <div className="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400">
                         <AlertCircle size={18} />
                       </div>
                       <div>
                         <p className="text-xs font-bold">Reset everything?</p>
-                        <p className="text-[10px] text-rose-600/70 font-medium">All inputs and generated data will be lost.</p>
+                        <p className="text-[10px] text-rose-400/70 font-medium">All inputs and generated data will be lost.</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
                       <button 
                         onClick={clearAll}
-                        className="flex-1 bg-rose-500 hover:bg-rose-600 text-white py-2.5 rounded-xl text-[10px] font-bold transition-all shadow-sm active:scale-95"
+                        className="flex-1 bg-rose-500/100 hover:bg-rose-600 text-white py-2.5 rounded-xl text-[10px] font-bold transition-all shadow-sm active:scale-95"
                       >
                         Yes, Clear All
                       </button>
                       <button 
                         onClick={() => setShowClearConfirm(false)}
-                        className="flex-1 bg-white border border-rose-200 text-rose-700 py-2.5 rounded-xl text-[10px] font-bold hover:bg-rose-100 transition-all active:scale-95"
+                        className="flex-1 bg-white/5 border border-rose-500/30 text-rose-400 py-2.5 rounded-xl text-[10px] font-bold hover:bg-rose-500/20 transition-all active:scale-95"
                       >
                         Cancel
                       </button>
@@ -2275,7 +2306,7 @@ export default function App() {
                 ) : (
                   <button
                     onClick={() => setShowClearConfirm(true)}
-                    className="w-full mt-4 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border border-slate-200 text-slate-400 hover:text-rose-500 hover:bg-rose-50 hover:border-rose-100 transition-all text-xs font-bold group"
+                    className="w-full mt-4 flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border border-brand-border text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 hover:border-rose-100 transition-all text-xs font-bold group"
                   >
                     <Trash2 size={14} className="group-hover:scale-110 transition-transform" />
                     Clear All Inputs
@@ -2288,15 +2319,15 @@ export default function App() {
 
           {/* Output Panel */}
           <div className="space-y-8">
-            <section className="bg-white rounded-3xl p-8 shadow-soft border border-slate-100 h-full flex flex-col min-h-[600px]">
+            <section className="glass-card p-8 border border-white/10 h-full flex flex-col min-h-[600px]">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
                   <div className="space-y-1.5">
                     <div className="flex items-center gap-3">
-                      <h2 className="text-2xl font-bold text-slate-900 font-display">Generated Schedule</h2>
+                      <h2 className="text-2xl font-bold text-white font-display">Generated Schedule</h2>
                       {hasSavedData && !isGenerated && (
                         <button 
                           onClick={restoreLastSchedule}
-                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                          className="p-1.5 text-slate-400 hover:text-brand-accent-teal hover:bg-brand-accent-violet/10 rounded-lg transition-all"
                           title="Restore Last Generated"
                         >
                           <History size={18} />
@@ -2320,7 +2351,7 @@ export default function App() {
                   <div className="flex gap-3">
                     <button 
                       onClick={copyToClipboard}
-                      className="flex items-center justify-center gap-2.5 bg-slate-100 text-slate-600 px-6 py-3 rounded-2xl text-xs font-bold hover:bg-slate-200 hover:-translate-y-0.5 active:translate-y-0 transition-all border border-slate-200"
+                      className="flex items-center justify-center gap-2.5 bg-white/[0.1] text-slate-500 px-6 py-3 rounded-2xl text-xs font-bold hover:bg-white/20 hover:-translate-y-1 hover:shadow-glow-hover active:translate-y-0 transition-all border border-brand-border"
                     >
                       {isCopied ? (
                         <>
@@ -2336,7 +2367,7 @@ export default function App() {
                     </button>
                     <button 
                       onClick={downloadCSV}
-                      className="flex items-center justify-center gap-2.5 bg-indigo-600 text-white px-6 py-3 rounded-2xl text-xs font-bold hover:bg-indigo-700 hover:-translate-y-0.5 active:translate-y-0 transition-all shadow-lg shadow-indigo-100"
+                      className="flex items-center justify-center gap-2.5 bg-gradient-to-r from-brand-accent-violet to-brand-accent-teal border-none shadow-glow text-white px-6 py-3 rounded-2xl text-xs font-bold hover:bg-indigo-700 hover:-translate-y-1 hover:shadow-glow-hover active:translate-y-0 transition-all shadow-lg shadow-indigo-100"
                     >
                       <Download size={16} />
                       <span>Download CSV</span>
@@ -2345,31 +2376,31 @@ export default function App() {
                 )}
               </div>
 
-              <div className="flex-1 overflow-hidden border border-slate-100 rounded-3xl bg-slate-50/50">
+              <div className="flex-1 overflow-hidden border border-brand-border rounded-3xl bg-white/[0.03]">
                 {!isGenerated ? (
                   <div className="h-full flex flex-col items-center justify-center text-center p-12 space-y-6">
-                    <div className="w-24 h-24 bg-white rounded-3xl shadow-soft flex items-center justify-center text-slate-200">
+                    <div className="w-24 h-24 bg-white/5 rounded-3xl shadow-soft flex items-center justify-center text-slate-200">
                       <Calendar size={40} />
                     </div>
                     <div className="space-y-2 max-w-xs">
-                      <p className="text-lg font-bold text-slate-700">Ready to generate</p>
+                      <p className="text-lg font-bold text-slate-200">Ready to generate</p>
                       <p className="text-sm font-medium text-slate-400 leading-relaxed">Adjust your settings and click the generate button to see your schedule here.</p>
                     </div>
                   </div>
                 ) : generatedSchedule.length === 0 ? (
                   <div className="h-full flex flex-col items-center justify-center text-center p-12 space-y-6">
-                    <div className="w-24 h-24 bg-rose-50 rounded-3xl flex items-center justify-center text-rose-400">
+                    <div className="w-24 h-24 bg-rose-500/10 rounded-3xl flex items-center justify-center text-rose-400">
                       <AlertCircle size={40} />
                     </div>
                     <div className="space-y-2 max-w-xs">
-                      <p className="text-lg font-bold text-slate-700 text-rose-600">No sessions found</p>
+                      <p className="text-lg font-bold text-slate-200 text-rose-400">No sessions found</p>
                       <p className="text-sm font-medium text-slate-400 leading-relaxed">Try expanding your date range or changing your day selection filters.</p>
                     </div>
                   </div>
                 ) : (
                   <div className="h-full overflow-y-auto custom-scrollbar">
                     <table className="w-full text-left border-collapse">
-                      <thead className="sticky top-0 bg-white/80 backdrop-blur-md border-b border-slate-100 z-10">
+                      <thead className="sticky top-0 bg-black/40 backdrop-blur-md border-b border-brand-border z-10">
                         <tr>
                           <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">#</th>
                           <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Title</th>
@@ -2381,13 +2412,13 @@ export default function App() {
                       </thead>
                       <tbody className="divide-y divide-slate-50">
                         {generatedSchedule.map((item, index) => (
-                          <tr key={index} className="hover:bg-white transition-colors group">
-                            <td className="px-6 py-5 text-[11px] font-mono text-slate-300">{index + 1}</td>
-                            <td className="px-6 py-5 text-sm font-semibold text-slate-700 truncate max-w-[140px]" title={item.title}>{item.title || '-'}</td>
-                            <td className="px-6 py-5 text-sm font-medium text-slate-500">{item.course}</td>
-                            <td className="px-6 py-5 text-sm font-medium text-slate-500">{item.batch}</td>
-                            <td className="px-6 py-5 text-sm font-medium text-slate-600 whitespace-nowrap">{item.startTime}</td>
-                            <td className="px-6 py-5 text-sm font-medium text-slate-600 whitespace-nowrap">{item.endTime}</td>
+                          <tr key={index} className="hover:bg-white/5 transition-colors group">
+                            <td className="px-6 py-5 text-[11px] font-mono text-slate-500">{index + 1}</td>
+                            <td className="px-6 py-5 text-sm font-semibold text-slate-200 truncate max-w-[140px]" title={item.title}>{item.title || '-'}</td>
+                            <td className="px-6 py-5 text-sm font-medium text-slate-400">{item.course}</td>
+                            <td className="px-6 py-5 text-sm font-medium text-slate-400">{item.batch}</td>
+                            <td className="px-6 py-5 text-sm font-medium text-slate-500 whitespace-nowrap">{item.startTime}</td>
+                            <td className="px-6 py-5 text-sm font-medium text-slate-500 whitespace-nowrap">{item.endTime}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2400,13 +2431,13 @@ export default function App() {
         </div>
 
         {/* Footer */}
-        <footer className="pt-12 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-6 text-[11px] text-slate-400 uppercase font-bold tracking-[0.2em]">
+        <footer className="pt-12 border-t border-brand-border flex flex-col md:flex-row justify-between items-center gap-6 text-[11px] text-slate-400 uppercase font-bold tracking-[0.2em]">
           <div className="flex items-center gap-6">
             <span>© 2026 Scheduler SaaS</span>
-            <span className="w-1.5 h-1.5 bg-slate-200 rounded-full"></span>
+            <span className="w-1.5 h-1.5 bg-white/20 rounded-full"></span>
             <span>Asia/Kolkata Standard Time</span>
           </div>
-          <div className="flex items-center gap-2.5 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-full">
+          <div className="flex items-center gap-2.5 px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-full">
             <CheckCircle2 size={14} />
             <span>All Systems Operational</span>
           </div>
