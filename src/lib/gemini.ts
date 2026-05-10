@@ -9,7 +9,7 @@ export async function parseCurriculumFromImage(base64Image: string, mimeType: st
     throw new Error("Missing Gemini API Key");
   }
   const response = await ai.models.generateContent({
-    model: "gemini-3.1-pro-preview",
+    model: "gemini-2.5-flash",
     contents: {
       parts: [
         {
