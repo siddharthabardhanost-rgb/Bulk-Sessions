@@ -55,6 +55,16 @@ import { motion, AnimatePresence } from 'motion/react';
 
 // Types
 type DayOption = 'weekdays' | 'weekends' | 'custom';
+
+type CustomDayConfig = {
+  startTime: string; // HH:mm
+  endTime: string;   // HH:mm
+  title: string;
+  link?: string;
+  category?: 'live-sessions-aig' | 'qna-sessions-aig';
+  instructors?: string[];
+};
+
 type TimeSlot = {
   id: string;
   startTime: string; // HH:mm
@@ -78,6 +88,7 @@ type TimeSlot = {
   courseLogic: 'sequential' | 'combined' | 'hybrid';
   batch: string[];
   courseGroup: string;
+  customDayConfigs?: { [dayOfWeek: number]: CustomDayConfig };
 };
 
 type GeneratedRow = {
@@ -1038,6 +1049,50 @@ export default function App() {
     setTimeSlots(timeSlots.map(slot => slot.id === id ? { ...slot, [field]: value } : slot));
   };
 
+  const getCustomDayConfig = (slot: TimeSlot, dayValue: number) => {
+    const config = slot.customDayConfigs?.[dayValue];
+    return {
+      startTime: config?.startTime || slot.startTime,
+      endTime: config?.endTime || slot.endTime,
+      title: config !== undefined ? config.title : slot.title,
+      link: config?.link || '',
+      category: config?.category || 'live-sessions-aig',
+      instructors: config?.instructors !== undefined ? config.instructors : slot.instructors
+    };
+  };
+
+  const updateCustomDayConfig = (
+    slotId: string, 
+    dayValue: number, 
+    key: 'startTime' | 'endTime' | 'title' | 'link' | 'category' | 'instructors', 
+    value: any
+  ) => {
+    setTimeSlots(timeSlots.map(slot => {
+      if (slot.id === slotId) {
+        const currentConfigs = slot.customDayConfigs || {};
+        const currentDayConfig = currentConfigs[dayValue] || {
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+          title: slot.title,
+          link: '',
+          category: 'live-sessions-aig',
+          instructors: slot.instructors
+        };
+        return {
+          ...slot,
+          customDayConfigs: {
+            ...currentConfigs,
+            [dayValue]: {
+              ...currentDayConfig,
+              [key]: value
+            }
+          }
+        };
+      }
+      return slot;
+    }));
+  };
+
   const addInstructor = (slotId: string) => {
     setTimeSlots(timeSlots.map(slot => 
       slot.id === slotId ? { ...slot, instructors: [...slot.instructors, ''] } : slot
@@ -1295,14 +1350,30 @@ export default function App() {
       timeSlots.forEach(slot => {
         let currentStartTime = slot.startTime;
         let currentEndTime = slot.endTime;
+        let finalTitle = slot.title;
+        let finalCategory = slot.category;
         
-        if (slot.category === 'live-sessions-aig' && dayOfWeek === 0) {
-          currentStartTime = slot.sundayStartTime || slot.startTime;
-          currentEndTime = slot.sundayEndTime || slot.endTime;
-        } else if (slot.category === 'qna-sessions-aig' && (dayOfWeek === 2 || dayOfWeek === 4)) {
-          // Tue (2) and Thu (4) overrides for Q&A
-          currentStartTime = slot.tueThuStartTime || slot.startTime;
-          currentEndTime = slot.tueThuEndTime || slot.endTime;
+        if (dayOption === 'custom') {
+          const customConfig = slot.customDayConfigs?.[dayOfWeek];
+          if (customConfig) {
+            currentStartTime = customConfig.startTime || slot.startTime;
+            currentEndTime = customConfig.endTime || slot.endTime;
+            if (customConfig.title !== undefined && customConfig.title.trim() !== '') {
+              finalTitle = customConfig.title;
+            }
+            if (customConfig.category) {
+              finalCategory = customConfig.category;
+            }
+          }
+        } else {
+          if (slot.category === 'live-sessions-aig' && dayOfWeek === 0) {
+            currentStartTime = slot.sundayStartTime || slot.startTime;
+            currentEndTime = slot.sundayEndTime || slot.endTime;
+          } else if (slot.category === 'qna-sessions-aig' && (dayOfWeek === 2 || dayOfWeek === 4)) {
+            // Tue (2) and Thu (4) overrides for Q&A
+            currentStartTime = slot.tueThuStartTime || slot.startTime;
+            currentEndTime = slot.tueThuEndTime || slot.endTime;
+          }
         }
 
         const [startH, startM] = currentStartTime.split(':').map(Number);
@@ -1322,7 +1393,10 @@ export default function App() {
 
         // Conditional Session Link
         let sessionLink = '';
-        if (slot.category === 'qna-sessions-aig' || dayOption === 'custom') {
+        if (dayOption === 'custom') {
+          const customConfig = slot.customDayConfigs?.[dayOfWeek];
+          sessionLink = (customConfig && customConfig.link) ? customConfig.link : slot.sessionLink;
+        } else if (slot.category === 'qna-sessions-aig') {
           sessionLink = slot.sessionLink;
         } else {
           // Sunday (0) uses sundayLink, others use saturdayLink
@@ -1331,14 +1405,13 @@ export default function App() {
 
         // Course Logic
         let courseValue = '';
-        let finalTitle = slot.title;
-        if (slot.category === 'qna-sessions-aig' && (dayOfWeek === 2 || dayOfWeek === 4)) {
+        if (dayOption !== 'custom' && slot.category === 'qna-sessions-aig' && (dayOfWeek === 2 || dayOfWeek === 4)) {
           finalTitle = slot.tueThuTitle || slot.title;
         }
         const activeCourses = slot.course.filter(c => c.trim() !== '');
         const activeBatches = slot.batch.filter(b => b.trim() !== '');
         
-        if (slot.category === 'live-sessions-aig') {
+        if (finalCategory === 'live-sessions-aig' && dayOption !== 'custom') {
           if (curriculumManagerList.length > 0) {
             if (liveSessionCounter >= curriculumManagerList.length) {
               // Curriculum exhausted, skip generating further sessions of this type
@@ -1371,7 +1444,12 @@ export default function App() {
         }
 
         let currentInstructors = slot.instructors;
-        if (slot.category === 'qna-sessions-aig') {
+        if (dayOption === 'custom') {
+          const customConfig = slot.customDayConfigs?.[dayOfWeek];
+          if (customConfig && customConfig.instructors && customConfig.instructors.length > 0 && customConfig.instructors[0].trim() !== '') {
+            currentInstructors = customConfig.instructors;
+          }
+        } else if (finalCategory === 'qna-sessions-aig') {
           if (dayOfWeek === 2 && slot.instructorsTue && slot.instructorsTue.length > 0 && slot.instructorsTue[0].trim() !== '') {
             currentInstructors = slot.instructorsTue;
           } else if (dayOfWeek === 4 && slot.instructorsThu && slot.instructorsThu.length > 0 && slot.instructorsThu[0].trim() !== '') {
@@ -1384,7 +1462,7 @@ export default function App() {
           description: slot.description,
           sessionLink: sessionLink,
           sessionPlatform: slot.sessionPlatform,
-          category: slot.category,
+          category: finalCategory,
           startTime: startStr,
           endTime: endStr,
           instructors: currentInstructors.filter(i => i.trim() !== '').join(', '),
@@ -1912,7 +1990,129 @@ export default function App() {
                       const slot = timeSlots.find(s => s.id === selectedSlotId)!;
                       return (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {slot.category === 'live-sessions-aig' ? (
+                          {dayOption === 'custom' ? (
+                            <>
+                              {customDays.length === 0 ? (
+                                <div className="col-span-2 text-center py-6 px-4 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-2xl text-xs font-semibold">
+                                  Please select at least one day in the "Day Selection" panel above to customize timing.
+                                </div>
+                              ) : (
+                                DAYS_OF_WEEK.filter(d => customDays.includes(d.value)).map((day) => {
+                                  const dayConfig = getCustomDayConfig(slot, day.value);
+                                  return (
+                                    <div key={day.value} className="col-span-2 space-y-3 p-4 bg-white/[0.03] rounded-2xl border border-brand-border/40">
+                                      <div className="flex items-center justify-between border-b border-white/[0.05] pb-2">
+                                        <span className="text-[11px] text-brand-accent-teal uppercase font-bold tracking-wider flex items-center gap-1.5">
+                                          <Calendar size={12} className="text-brand-accent-violet" />
+                                          {day.label} Custom Settings
+                                        </span>
+                                        <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">
+                                          Active
+                                        </span>
+                                      </div>
+                                      <div className="space-y-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                          <TimeInput12h 
+                                            label="Start Time"
+                                            value={dayConfig.startTime}
+                                            onChange={(val) => updateCustomDayConfig(slot.id, day.value, 'startTime', val)}
+                                          />
+                                          <TimeInput12h 
+                                            label="End Time"
+                                            value={dayConfig.endTime}
+                                            onChange={(val) => updateCustomDayConfig(slot.id, day.value, 'endTime', val)}
+                                          />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                          <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Session Name / Title</span>
+                                          <input 
+                                            type="text" 
+                                            value={dayConfig.title}
+                                            onChange={(e) => updateCustomDayConfig(slot.id, day.value, 'title', e.target.value)}
+                                            placeholder={`Enter session name for ${day.label}...`}
+                                            className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                                          />
+                                        </div>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                          <div className="space-y-1.5">
+                                            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Category</span>
+                                            <div className="flex bg-white/5 border border-brand-border rounded-xl p-1 relative shadow-sm">
+                                              {(['live-sessions-aig', 'qna-sessions-aig'] as const).map((c) => (
+                                                <button
+                                                  key={c}
+                                                  type="button"
+                                                  onClick={() => updateCustomDayConfig(slot.id, day.value, 'category', c)}
+                                                  className={`relative z-10 flex-1 py-1.5 text-[9px] font-bold rounded-lg transition-all duration-300 ${
+                                                    dayConfig.category === c 
+                                                      ? 'text-white bg-brand-accent-violet animate-pulse-subtle' 
+                                                      : 'text-slate-400 hover:text-slate-200'
+                                                  }`}
+                                                >
+                                                  {c === 'qna-sessions-aig' ? 'Q&A' : 'LIVE'}
+                                                </button>
+                                              ))}
+                                            </div>
+                                          </div>
+                                          <div className="space-y-1.5">
+                                            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1">
+                                              <ExternalLink size={10} />
+                                              {day.label} Link *
+                                            </span>
+                                            <input 
+                                              type="text" 
+                                              value={dayConfig.link || ''}
+                                              onChange={(e) => updateCustomDayConfig(slot.id, day.value, 'link', e.target.value)}
+                                              placeholder="https://..."
+                                              className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-2.5 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                                            />
+                                          </div>
+                                        </div>
+
+                                        {/* Custom day Instructors */}
+                                        <div className="space-y-3 pt-3 border-t border-white/[0.05]">
+                                          <div className="flex items-center justify-between">
+                                            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
+                                              <Users size={10} />
+                                              {day.label} Instructors *
+                                            </span>
+                                            <button 
+                                              type="button"
+                                              onClick={() => updateCustomDayConfig(slot.id, day.value, 'instructors', [...(dayConfig.instructors || []), ''])}
+                                              className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
+                                            >
+                                              <Plus size={10} />
+                                              Add Instructor
+                                            </button>
+                                          </div>
+                                          <div className="space-y-3">
+                                            {(dayConfig.instructors || ['']).map((inst, idx) => (
+                                              <SearchableInput 
+                                                key={`custom-inst-${day.value}-${idx}`}
+                                                value={inst}
+                                                onChange={(val) => {
+                                                  const newArr = [...(dayConfig.instructors || [''])];
+                                                  newArr[idx] = val;
+                                                  updateCustomDayConfig(slot.id, day.value, 'instructors', newArr);
+                                                }}
+                                                recentOptions={recentInstructors}
+                                                isMandatory={idx === 0}
+                                                showRemove={idx > 0}
+                                                onRemove={() => {
+                                                  const newArr = (dayConfig.instructors || ['']).filter((_, i) => i !== idx);
+                                                  updateCustomDayConfig(slot.id, day.value, 'instructors', newArr);
+                                                }}
+                                                placeholder={`${day.label} Instructor ID`}
+                                              />
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              )}
+                            </>
+                          ) : slot.category === 'live-sessions-aig' ? (
                             <>
                               <div className="col-span-2 space-y-3">
                                 <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Saturday Time</span>
@@ -1996,9 +2196,9 @@ export default function App() {
                                 </div>
                               </div>
                             </>
-                           )}
+                          )}
 
-                          <div className="space-y-1.5">
+                          <div className={dayOption === 'custom' ? "col-span-2 space-y-1.5" : "space-y-1.5"}>
                             <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Platform</span>
                             <div className="flex bg-white/5 border border-brand-border rounded-xl p-1 relative shadow-sm">
                               {(['ZOOM', 'MEET'] as const).map((p) => (
@@ -2024,205 +2224,211 @@ export default function App() {
                             </div>
                           </div>
 
-                          <div className="space-y-1.5">
-                            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Category</span>
-                            <div className="flex bg-white/5 border border-brand-border rounded-xl p-1 relative shadow-sm">
-                              {(['qna-sessions-aig', 'live-sessions-aig'] as const).map((c) => (
-                                <button
-                                  key={c}
-                                  onClick={() => updateTimeSlot(slot.id, 'category', c)}
-                                  className={`relative z-10 flex-1 py-2 text-[9px] font-bold rounded-lg transition-all duration-300 ${
-                                    slot.category === c 
-                                      ? 'text-white' 
-                                      : 'text-slate-400 hover:text-slate-500'
-                                  }`}
-                                >
-                                  {slot.category === c && (
-                                    <motion.div 
-                                      layoutId={`categoryBg-${slot.id}`}
-                                      className="absolute inset-0 bg-brand-accent-violet text-white rounded-lg -z-10 shadow-md"
-                                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                                    />
-                                  )}
-                                  {c === 'qna-sessions-aig' ? 'Q&A' : 'LIVE'}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="col-span-2">
-                            <AnimatePresence mode="wait">
-                              {(slot.category === 'qna-sessions-aig' || dayOption === 'custom') ? (
-                                <motion.div 
-                                  key="single-link"
-                                  initial={{ opacity: 0, height: 0 }}
-                                  animate={{ opacity: 1, height: 'auto' }}
-                                  exit={{ opacity: 0, height: 0 }}
-                                  className="space-y-1.5"
-                                >
-                                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
-                                    <ExternalLink size={10} />
-                                    Session Link *
-                                  </span>
-                                  <input 
-                                    type="text" 
-                                    value={slot.sessionLink}
-                                    onChange={(e) => updateTimeSlot(slot.id, 'sessionLink', e.target.value)}
-                                    placeholder="https://..."
-                                    className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
-                                  />
-                                </motion.div>
-                              ) : (
-                                <motion.div 
-                                  key="split-links"
-                                  initial={{ opacity: 0, height: 0 }}
-                                  animate={{ opacity: 1, height: 'auto' }}
-                                  exit={{ opacity: 0, height: 0 }}
-                                  className="grid grid-cols-2 gap-4"
-                                >
-                                  <div className="space-y-1.5">
-                                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
-                                      <ExternalLink size={10} />
-                                      Saturday Link *
-                                    </span>
-                                    <input 
-                                      type="text" 
-                                      value={slot.saturdayLink}
-                                      onChange={(e) => updateTimeSlot(slot.id, 'saturdayLink', e.target.value)}
-                                      placeholder="https://..."
-                                      className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
-                                    />
-                                  </div>
-                                  <div className="space-y-1.5">
-                                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
-                                      <ExternalLink size={10} />
-                                      Sunday Link *
-                                    </span>
-                                    <input 
-                                      type="text" 
-                                      value={slot.sundayLink}
-                                      onChange={(e) => updateTimeSlot(slot.id, 'sundayLink', e.target.value)}
-                                      placeholder="https://..."
-                                      className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
-                                    />
-                                  </div>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                          </div>
-
-                          <div className="col-span-2 space-y-4">
-                            {/* General/MWF Instructors */}
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
-                                  <Users size={10} />
-                                  {slot.category === 'qna-sessions-aig' ? 'Mon/Wed/Fri Instructors *' : 'Instructors *'}
-                                </span>
-                                <button 
-                                  onClick={() => addInstructor(slot.id)}
-                                  className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
-                                >
-                                  <Plus size={10} />
-                                  Add Instructor
-                                </button>
-                              </div>
-                              <div className="space-y-3">
-                                {slot.instructors.map((inst, idx) => (
-                                  <SearchableInput 
-                                    key={`mwf-${idx}`}
-                                    value={inst}
-                                    onChange={(val) => updateInstructor(slot.id, idx, val)}
-                                    recentOptions={recentInstructors}
-                                    isMandatory={idx === 0}
-                                    showRemove={idx > 0}
-                                    onRemove={() => removeInstructor(slot.id, idx)}
-                                    placeholder="Instructor ID"
-                                  />
+                          {dayOption !== 'custom' && (
+                            <div className="space-y-1.5">
+                              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Category</span>
+                              <div className="flex bg-white/5 border border-brand-border rounded-xl p-1 relative shadow-sm">
+                                {(['qna-sessions-aig', 'live-sessions-aig'] as const).map((c) => (
+                                  <button
+                                    key={c}
+                                    onClick={() => updateTimeSlot(slot.id, 'category', c)}
+                                    className={`relative z-10 flex-1 py-2 text-[9px] font-bold rounded-lg transition-all duration-300 ${
+                                      slot.category === c 
+                                        ? 'text-white' 
+                                        : 'text-slate-400 hover:text-slate-500'
+                                    }`}
+                                  >
+                                    {slot.category === c && (
+                                      <motion.div 
+                                        layoutId={`categoryBg-${slot.id}`}
+                                        className="absolute inset-0 bg-brand-accent-violet text-white rounded-lg -z-10 shadow-md"
+                                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                      />
+                                    )}
+                                    {c === 'qna-sessions-aig' ? 'Q&A' : 'LIVE'}
+                                  </button>
                                 ))}
                               </div>
                             </div>
+                          )}
 
-                            {/* Q&A specific instructor fields */}
-                            {slot.category === 'qna-sessions-aig' && (
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-brand-border">
-                                {/* Tuesday Instructors */}
-                                <div className="space-y-3">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-[10px] text-brand-accent-teal uppercase font-bold tracking-wide flex items-center gap-1.5">
-                                      <Users size={10} />
-                                      Tue Instructors *
+                          {dayOption !== 'custom' && (
+                            <div className="col-span-2">
+                              <AnimatePresence mode="wait">
+                                {slot.category === 'qna-sessions-aig' ? (
+                                  <motion.div 
+                                    key="single-link"
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="space-y-1.5"
+                                  >
+                                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
+                                      <ExternalLink size={10} />
+                                      Session Link *
                                     </span>
-                                    <button 
-                                      onClick={() => updateTimeSlot(slot.id, 'instructorsTue', [...(slot.instructorsTue || []), ''])}
-                                      className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
-                                    >
-                                      <Plus size={10} />
-                                      Add
-                                    </button>
-                                  </div>
-                                  <div className="space-y-3">
-                                    {(slot.instructorsTue || ['']).map((inst, idx) => (
-                                      <SearchableInput 
-                                        key={`tue-${idx}`}
-                                        value={inst}
-                                        onChange={(val) => {
-                                          const newArr = [...(slot.instructorsTue || [''])];
-                                          newArr[idx] = val;
-                                          updateTimeSlot(slot.id, 'instructorsTue', newArr);
-                                        }}
-                                        recentOptions={recentInstructors}
-                                        isMandatory={idx === 0}
-                                        showRemove={idx > 0}
-                                        onRemove={() => {
-                                          const newArr = (slot.instructorsTue || ['']).filter((_, i) => i !== idx);
-                                          updateTimeSlot(slot.id, 'instructorsTue', newArr);
-                                        }}
-                                        placeholder="Tue Instructor ID"
+                                    <input 
+                                      type="text" 
+                                      value={slot.sessionLink}
+                                      onChange={(e) => updateTimeSlot(slot.id, 'sessionLink', e.target.value)}
+                                      placeholder="https://..."
+                                      className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                                    />
+                                  </motion.div>
+                                ) : (
+                                  <motion.div 
+                                    key="split-links"
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: 'auto' }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    className="grid grid-cols-2 gap-4"
+                                  >
+                                    <div className="space-y-1.5">
+                                      <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
+                                        <ExternalLink size={10} />
+                                        Saturday Link *
+                                      </span>
+                                      <input 
+                                        type="text" 
+                                        value={slot.saturdayLink}
+                                        onChange={(e) => updateTimeSlot(slot.id, 'saturdayLink', e.target.value)}
+                                        placeholder="https://..."
+                                        className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
                                       />
-                                    ))}
-                                  </div>
+                                    </div>
+                                    <div className="space-y-1.5">
+                                      <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
+                                        <ExternalLink size={10} />
+                                        Sunday Link *
+                                      </span>
+                                      <input 
+                                        type="text" 
+                                        value={slot.sundayLink}
+                                        onChange={(e) => updateTimeSlot(slot.id, 'sundayLink', e.target.value)}
+                                        placeholder="https://..."
+                                        className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                                      />
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          )}
+
+                          {dayOption !== 'custom' && (
+                            <div className="col-span-2 space-y-4">
+                              {/* General/MWF Instructors */}
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
+                                    <Users size={10} />
+                                    {slot.category === 'qna-sessions-aig' ? 'Mon/Wed/Fri Instructors *' : 'Instructors *'}
+                                  </span>
+                                  <button 
+                                    onClick={() => addInstructor(slot.id)}
+                                    className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
+                                  >
+                                    <Plus size={10} />
+                                    Add Instructor
+                                  </button>
                                 </div>
-                                {/* Thursday Instructors */}
                                 <div className="space-y-3">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-[10px] text-brand-accent-teal uppercase font-bold tracking-wide flex items-center gap-1.5">
-                                      <Users size={10} />
-                                      Thu Instructors *
-                                    </span>
-                                    <button 
-                                      onClick={() => updateTimeSlot(slot.id, 'instructorsThu', [...(slot.instructorsThu || []), ''])}
-                                      className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
-                                    >
-                                      <Plus size={10} />
-                                      Add
-                                    </button>
-                                  </div>
-                                  <div className="space-y-3">
-                                    {(slot.instructorsThu || ['']).map((inst, idx) => (
-                                      <SearchableInput 
-                                        key={`thu-${idx}`}
-                                        value={inst}
-                                        onChange={(val) => {
-                                          const newArr = [...(slot.instructorsThu || [''])];
-                                          newArr[idx] = val;
-                                          updateTimeSlot(slot.id, 'instructorsThu', newArr);
-                                        }}
-                                        recentOptions={recentInstructors}
-                                        isMandatory={idx === 0}
-                                        showRemove={idx > 0}
-                                        onRemove={() => {
-                                          const newArr = (slot.instructorsThu || ['']).filter((_, i) => i !== idx);
-                                          updateTimeSlot(slot.id, 'instructorsThu', newArr);
-                                        }}
-                                        placeholder="Thu Instructor ID"
-                                      />
-                                    ))}
-                                  </div>
+                                  {slot.instructors.map((inst, idx) => (
+                                    <SearchableInput 
+                                      key={`mwf-${idx}`}
+                                      value={inst}
+                                      onChange={(val) => updateInstructor(slot.id, idx, val)}
+                                      recentOptions={recentInstructors}
+                                      isMandatory={idx === 0}
+                                      showRemove={idx > 0}
+                                      onRemove={() => removeInstructor(slot.id, idx)}
+                                      placeholder="Instructor ID"
+                                    />
+                                  ))}
                                 </div>
                               </div>
-                            )}
-                          </div>
+
+                              {/* Q&A specific instructor fields */}
+                              {slot.category === 'qna-sessions-aig' && (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-brand-border">
+                                  {/* Tuesday Instructors */}
+                                  <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[10px] text-brand-accent-teal uppercase font-bold tracking-wide flex items-center gap-1.5">
+                                        <Users size={10} />
+                                        Tue Instructors *
+                                      </span>
+                                      <button 
+                                        onClick={() => updateTimeSlot(slot.id, 'instructorsTue', [...(slot.instructorsTue || []), ''])}
+                                        className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
+                                      >
+                                        <Plus size={10} />
+                                        Add
+                                      </button>
+                                    </div>
+                                    <div className="space-y-3">
+                                      {(slot.instructorsTue || ['']).map((inst, idx) => (
+                                        <SearchableInput 
+                                          key={`tue-${idx}`}
+                                          value={inst}
+                                          onChange={(val) => {
+                                            const newArr = [...(slot.instructorsTue || [''])];
+                                            newArr[idx] = val;
+                                            updateTimeSlot(slot.id, 'instructorsTue', newArr);
+                                          }}
+                                          recentOptions={recentInstructors}
+                                          isMandatory={idx === 0}
+                                          showRemove={idx > 0}
+                                          onRemove={() => {
+                                            const newArr = (slot.instructorsTue || ['']).filter((_, i) => i !== idx);
+                                            updateTimeSlot(slot.id, 'instructorsTue', newArr);
+                                          }}
+                                          placeholder="Tue Instructor ID"
+                                        />
+                                      ))}
+                                    </div>
+                                  </div>
+                                  {/* Thursday Instructors */}
+                                  <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-[10px] text-brand-accent-teal uppercase font-bold tracking-wide flex items-center gap-1.5">
+                                        <Users size={10} />
+                                        Thu Instructors *
+                                      </span>
+                                      <button 
+                                        onClick={() => updateTimeSlot(slot.id, 'instructorsThu', [...(slot.instructorsThu || []), ''])}
+                                        className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
+                                      >
+                                        <Plus size={10} />
+                                        Add
+                                      </button>
+                                    </div>
+                                    <div className="space-y-3">
+                                      {(slot.instructorsThu || ['']).map((inst, idx) => (
+                                        <SearchableInput 
+                                          key={`thu-${idx}`}
+                                          value={inst}
+                                          onChange={(val) => {
+                                            const newArr = [...(slot.instructorsThu || [''])];
+                                            newArr[idx] = val;
+                                            updateTimeSlot(slot.id, 'instructorsThu', newArr);
+                                          }}
+                                          recentOptions={recentInstructors}
+                                          isMandatory={idx === 0}
+                                          showRemove={idx > 0}
+                                          onRemove={() => {
+                                            const newArr = (slot.instructorsThu || ['']).filter((_, i) => i !== idx);
+                                            updateTimeSlot(slot.id, 'instructorsThu', newArr);
+                                          }}
+                                          placeholder="Thu Instructor ID"
+                                        />
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
 
                           <div className="col-span-2 space-y-3">
                             <div className="flex items-center justify-between">
