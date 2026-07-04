@@ -8,6 +8,7 @@ export interface CurriculumPhase {
   id: string;
   name: string;
   sessions: CurriculumSession[];
+  courseId?: string;
 }
 
 export interface CurriculumBlueprint {
@@ -92,21 +93,21 @@ export function getSynchronizedCourseIDs(
   blueprint: CurriculumBlueprint
 ): string {
   // Find phase by title
-  let phaseId = '';
+  let foundPhase: CurriculumPhase | null = null;
   for (const phase of blueprint.phases) {
     if (phase.sessions.some(s => s.title === title)) {
-      phaseId = phase.id;
+      foundPhase = phase;
       break;
     }
   }
   
-  if (!phaseId) {
+  if (!foundPhase) {
     return "N/A";
   }
 
   const ids = activeBatches.map(batch => {
     const batchIds = blueprint.batchPhaseIds[batch];
-    return batchIds?.[phaseId] || "N/A";
+    return batchIds?.[foundPhase!.id] || foundPhase!.courseId || foundPhase!.id || "N/A";
   });
 
   return ids.join(', ');

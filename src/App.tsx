@@ -37,6 +37,7 @@ import {
   Users,
   Layers,
   FileText,
+  FileSpreadsheet,
   Clipboard,
   Check,
   Search,
@@ -65,6 +66,14 @@ type CustomDayConfig = {
   instructors?: string[];
 };
 
+type QnaDayConfig = {
+  type: 'normal' | 'open-mic';
+  instructors: string[];
+  startTime?: string;
+  endTime?: string;
+  title?: string;
+};
+
 type TimeSlot = {
   id: string;
   startTime: string; // HH:mm
@@ -89,6 +98,7 @@ type TimeSlot = {
   batch: string[];
   courseGroup: string;
   customDayConfigs?: { [dayOfWeek: number]: CustomDayConfig };
+  qnaDayConfigs?: { [dayOfWeek: number]: QnaDayConfig };
 };
 
 type GeneratedRow = {
@@ -551,6 +561,45 @@ const SortablePhase = ({ phase, onRenameSession, onDeleteSession, onAddSession, 
   );
 };
 
+function parseCSV(text: string): string[][] {
+  const lines: string[][] = [];
+  let row: string[] = [];
+  let inQuotes = false;
+  let currentVal = '';
+  
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i+1];
+    
+    if (char === '"') {
+      if (inQuotes && nextChar === '"') {
+        currentVal += '"';
+        i++; // skip next quote
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      row.push(currentVal.trim());
+      currentVal = '';
+    } else if ((char === '\r' || char === '\n') && !inQuotes) {
+      if (char === '\r' && nextChar === '\n') {
+        i++;
+      }
+      row.push(currentVal.trim());
+      lines.push(row);
+      row = [];
+      currentVal = '';
+    } else {
+      currentVal += char;
+    }
+  }
+  if (row.length > 0 || currentVal !== '') {
+    row.push(currentVal.trim());
+    lines.push(row);
+  }
+  return lines.filter(r => r.length > 0 && r.some(cell => cell !== ''));
+}
+
 export default function App() {
   // State
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -599,6 +648,26 @@ export default function App() {
     ...recentBatches,
     ...timeSlots.flatMap(s => s.batch.filter(b => b.trim() !== ''))
   ]));
+
+  const DAYS_LIST = [
+    { value: 1, label: 'Monday' },
+    { value: 2, label: 'Tuesday' },
+    { value: 3, label: 'Wednesday' },
+    { value: 4, label: 'Thursday' },
+    { value: 5, label: 'Friday' },
+    { value: 6, label: 'Saturday' },
+    { value: 0, label: 'Sunday' }
+  ];
+
+  const activeDaysList = (() => {
+    if (dayOption === 'weekdays') {
+      return DAYS_LIST.filter(d => d.value !== 6 && d.value !== 0);
+    } else if (dayOption === 'weekends') {
+      return DAYS_LIST.filter(d => d.value === 6 || d.value === 0);
+    } else {
+      return DAYS_LIST.filter(d => customDays.includes(d.value));
+    }
+  })();
 
   // Load recent instructors and saved schedule from localStorage
   useEffect(() => {
@@ -733,6 +802,93 @@ export default function App() {
     } catch (e) {
       console.error(e);
       setIsParsingImage(false);
+    }
+  };
+
+  const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const text = reader.result as string;
+        try {
+          const rows = parseCSV(text);
+          const phases: CurriculumPhase[] = [];
+          let currentPhase: CurriculumPhase | null = null;
+          let sessionCounter = 1;
+
+          rows.forEach(row => {
+            const colA = row[0] || '';
+            const colB = row[1] || '';
+            
+            // Heuristic for Phase rows
+            const isPhaseRow = colA.toLowerCase().includes('phase') || (colB.trim() !== '' && colA.trim() !== '');
+            
+            if (isPhaseRow) {
+              const phaseId = colB.trim() || `p_${Date.now()}_${phases.length + 1}`;
+              const phaseName = colA.trim();
+              
+              currentPhase = {
+                id: phaseId,
+                name: phaseName,
+                sessions: [],
+                courseId: colB.trim() || undefined
+              };
+              phases.push(currentPhase);
+            } else if (colA.trim() !== '') {
+              if (!currentPhase) {
+                currentPhase = {
+                  id: `p_default_${Date.now()}`,
+                  name: 'Default Phase',
+                  sessions: [],
+                  courseId: undefined
+                };
+                phases.push(currentPhase);
+              }
+              currentPhase.sessions.push({
+                id: `s_${sessionCounter++}`,
+                title: colA.trim()
+              });
+            }
+          });
+
+          if (phases.length > 0) {
+            // Auto capture phase IDs for phase-wise course id mapping
+            const batchPhaseIds = { ...blueprint.batchPhaseIds };
+            
+            // Pre-populate mapping for all current active batches using the phase IDs
+            currentActiveBatches.forEach(batch => {
+              if (!batchPhaseIds[batch]) {
+                batchPhaseIds[batch] = {};
+              }
+              phases.forEach(p => {
+                batchPhaseIds[batch][p.id] = p.courseId || p.id;
+              });
+            });
+
+            const newBlueprint = {
+              phases,
+              batchPhaseIds
+            };
+            setBlueprint(newBlueprint);
+            localStorage.setItem('curriculum_blueprint', JSON.stringify(newBlueprint));
+            alert('Curriculum updated successfully from the CSV file! Phase IDs mapped automatically.');
+          } else {
+            alert('Could not parse any phases from the CSV. Please ensure columns are formatted correctly.');
+          }
+        } catch (error: any) {
+          console.error(error);
+          alert('Error parsing CSV file: ' + error.message);
+        } finally {
+          e.target.value = '';
+        }
+      };
+      reader.readAsText(file);
+    } catch (err: any) {
+      console.error(err);
+      alert('Error reading file: ' + err.message);
     }
   };
 
@@ -1093,6 +1249,111 @@ export default function App() {
     }));
   };
 
+  const getQnaDayConfig = (slot: TimeSlot, dayValue: number): QnaDayConfig => {
+    const config = slot.qnaDayConfigs?.[dayValue];
+    if (config) {
+      return config;
+    }
+    const isDefaultOpenMic = dayValue === 2 || dayValue === 4;
+    return {
+      type: isDefaultOpenMic ? 'open-mic' : 'normal',
+      instructors: isDefaultOpenMic 
+        ? (dayValue === 2 ? (slot.instructorsTue || ['']) : (slot.instructorsThu || ['']))
+        : slot.instructors,
+      startTime: isDefaultOpenMic ? (slot.tueThuStartTime || slot.startTime) : slot.startTime,
+      endTime: isDefaultOpenMic ? (slot.tueThuEndTime || slot.endTime) : slot.endTime,
+      title: isDefaultOpenMic ? (slot.tueThuTitle || 'Open Mic Q&A Session') : slot.title
+    };
+  };
+
+  const updateQnaDayConfig = (
+    slotId: string,
+    dayValue: number,
+    key: keyof QnaDayConfig,
+    value: any
+  ) => {
+    setTimeSlots(timeSlots.map(slot => {
+      if (slot.id === slotId) {
+        const currentConfigs = slot.qnaDayConfigs || {};
+        const currentDayConfig = getQnaDayConfig(slot, dayValue);
+        return {
+          ...slot,
+          qnaDayConfigs: {
+            ...currentConfigs,
+            [dayValue]: {
+              ...currentDayConfig,
+              [key]: value
+            }
+          }
+        };
+      }
+      return slot;
+    }));
+  };
+
+  const addQnaInstructor = (slotId: string, dayValue: number) => {
+    setTimeSlots(timeSlots.map(slot => {
+      if (slot.id === slotId) {
+        const currentConfigs = slot.qnaDayConfigs || {};
+        const qnaConfig = getQnaDayConfig(slot, dayValue);
+        return {
+          ...slot,
+          qnaDayConfigs: {
+            ...currentConfigs,
+            [dayValue]: {
+              ...qnaConfig,
+              instructors: [...(qnaConfig.instructors || []), '']
+            }
+          }
+        };
+      }
+      return slot;
+    }));
+  };
+
+  const updateQnaInstructor = (slotId: string, dayValue: number, idx: number, value: string) => {
+    setTimeSlots(timeSlots.map(slot => {
+      if (slot.id === slotId) {
+        const currentConfigs = slot.qnaDayConfigs || {};
+        const qnaConfig = getQnaDayConfig(slot, dayValue);
+        const newArr = [...(qnaConfig.instructors || [''])];
+        newArr[idx] = value;
+        return {
+          ...slot,
+          qnaDayConfigs: {
+            ...currentConfigs,
+            [dayValue]: {
+              ...qnaConfig,
+              instructors: newArr
+            }
+          }
+        };
+      }
+      return slot;
+    }));
+  };
+
+  const removeQnaInstructor = (slotId: string, dayValue: number, idx: number) => {
+    setTimeSlots(timeSlots.map(slot => {
+      if (slot.id === slotId) {
+        const currentConfigs = slot.qnaDayConfigs || {};
+        const qnaConfig = getQnaDayConfig(slot, dayValue);
+        const newArr = (qnaConfig.instructors || ['']).filter((_, i) => i !== idx);
+        return {
+          ...slot,
+          qnaDayConfigs: {
+            ...currentConfigs,
+            [dayValue]: {
+              ...qnaConfig,
+              instructors: newArr
+            }
+          }
+        };
+      }
+      return slot;
+    }));
+  };
+
   const addInstructor = (slotId: string) => {
     setTimeSlots(timeSlots.map(slot => 
       slot.id === slotId ? { ...slot, instructors: [...slot.instructors, ''] } : slot
@@ -1307,9 +1568,40 @@ export default function App() {
     const invalidSlot = timeSlots.find(slot => {
       const isQnA = slot.category === 'qna-sessions-aig';
       const isCustom = dayOption === 'custom';
-      const linksValid = (isQnA || isCustom) ? !!slot.sessionLink : (!!slot.saturdayLink && !!slot.sundayLink);
       
-      return !linksValid || !slot.instructors[0] || !slot.batch[0];
+      if (!slot.batch || !slot.batch[0] || slot.batch[0].trim() === '') return true;
+
+      if (isCustom) {
+        if (customDays.length === 0) return true;
+        const allDaysValid = customDays.every(dayVal => {
+          const cfg = getCustomDayConfig(slot, dayVal);
+          if (!cfg.link || cfg.link.trim() === '') return false;
+          if (!cfg.instructors || cfg.instructors.length === 0 || !cfg.instructors[0] || cfg.instructors[0].trim() === '') return false;
+          return true;
+        });
+        return !allDaysValid;
+      }
+
+      if (isQnA) {
+        if (!slot.sessionLink || slot.sessionLink.trim() === '') return true;
+        
+        const activeDays = dayOption === 'weekdays' ? [1, 2, 3, 4, 5] : [6, 0];
+        const allDaysHaveInstructors = activeDays.every(dayVal => {
+          const cfg = getQnaDayConfig(slot, dayVal);
+          return cfg && cfg.instructors && cfg.instructors[0] && cfg.instructors[0].trim() !== '';
+        });
+        return !allDaysHaveInstructors;
+      }
+
+      // Live Sessions (non-custom)
+      if (dayOption === 'weekends') {
+        if (!slot.saturdayLink || slot.saturdayLink.trim() === '') return true;
+        if (!slot.sundayLink || slot.sundayLink.trim() === '') return true;
+      } else {
+        if (!slot.sessionLink || slot.sessionLink.trim() === '') return true;
+      }
+
+      return !slot.instructors || slot.instructors.length === 0 || !slot.instructors[0] || slot.instructors[0].trim() === '';
     });
 
     if (invalidSlot) {
@@ -1365,14 +1657,15 @@ export default function App() {
               finalCategory = customConfig.category;
             }
           }
+        } else if (slot.category === 'qna-sessions-aig') {
+          const qnaConfig = getQnaDayConfig(slot, dayOfWeek);
+          currentStartTime = qnaConfig.startTime || slot.startTime;
+          currentEndTime = qnaConfig.endTime || slot.endTime;
+          finalTitle = qnaConfig.title || (qnaConfig.type === 'open-mic' ? 'Open Mic Q&A Session' : slot.title);
         } else {
           if (slot.category === 'live-sessions-aig' && dayOfWeek === 0) {
             currentStartTime = slot.sundayStartTime || slot.startTime;
             currentEndTime = slot.sundayEndTime || slot.endTime;
-          } else if (slot.category === 'qna-sessions-aig' && (dayOfWeek === 2 || dayOfWeek === 4)) {
-            // Tue (2) and Thu (4) overrides for Q&A
-            currentStartTime = slot.tueThuStartTime || slot.startTime;
-            currentEndTime = slot.tueThuEndTime || slot.endTime;
           }
         }
 
@@ -1405,9 +1698,6 @@ export default function App() {
 
         // Course Logic
         let courseValue = '';
-        if (dayOption !== 'custom' && slot.category === 'qna-sessions-aig' && (dayOfWeek === 2 || dayOfWeek === 4)) {
-          finalTitle = slot.tueThuTitle || slot.title;
-        }
         const activeCourses = slot.course.filter(c => c.trim() !== '');
         const activeBatches = slot.batch.filter(b => b.trim() !== '');
         
@@ -1422,7 +1712,8 @@ export default function App() {
             
             const ids = activeBatches.map(batch => {
               const batchIds = blueprint.batchPhaseIds[batch];
-              return batchIds?.[curriculumItem.phaseId] || "N/A";
+              const phase = blueprint.phases.find(p => p.id === curriculumItem.phaseId);
+              return batchIds?.[curriculumItem.phaseId] || phase?.courseId || curriculumItem.phaseId || "N/A";
             });
             courseValue = ids.join(', ');
             
@@ -1450,10 +1741,9 @@ export default function App() {
             currentInstructors = customConfig.instructors;
           }
         } else if (finalCategory === 'qna-sessions-aig') {
-          if (dayOfWeek === 2 && slot.instructorsTue && slot.instructorsTue.length > 0 && slot.instructorsTue[0].trim() !== '') {
-            currentInstructors = slot.instructorsTue;
-          } else if (dayOfWeek === 4 && slot.instructorsThu && slot.instructorsThu.length > 0 && slot.instructorsThu[0].trim() !== '') {
-            currentInstructors = slot.instructorsThu;
+          const qnaConfig = getQnaDayConfig(slot, dayOfWeek);
+          if (qnaConfig && qnaConfig.instructors && qnaConfig.instructors.length > 0 && qnaConfig.instructors[0].trim() !== '') {
+            currentInstructors = qnaConfig.instructors;
           }
         }
 
@@ -1809,7 +2099,7 @@ export default function App() {
                       <p className="text-xs text-slate-400">Edit sessions, phases, and map Course IDs</p>
                     </div>
                   </div>
-                  <div>
+                  <div className="flex items-center gap-3">
                     <label className={`flex items-center gap-2 px-4 py-2 ${isParsingImage ? 'bg-brand-accent-violet/50 cursor-not-allowed' : 'bg-brand-accent-violet hover:bg-brand-accent-violet/80 cursor-pointer'} text-white rounded-xl text-xs font-bold transition-colors`}>
                       {isParsingImage ? (
                         <Loader2 size={14} className="animate-spin" />
@@ -1823,6 +2113,17 @@ export default function App() {
                         className="hidden" 
                         onChange={handleImageUpload}
                         disabled={isParsingImage}
+                      />
+                    </label>
+
+                    <label className="flex items-center gap-2 px-4 py-2 bg-brand-accent-teal hover:bg-brand-accent-teal/80 cursor-pointer text-white rounded-xl text-xs font-bold transition-colors shadow-sm">
+                      <FileSpreadsheet size={14} />
+                      <span>Upload CSV</span>
+                      <input 
+                        type="file" 
+                        accept=".csv" 
+                        className="hidden" 
+                        onChange={handleCSVUpload}
                       />
                     </label>
                   </div>
@@ -1855,7 +2156,7 @@ export default function App() {
                                   </label>
                                   <input 
                                     type="text"
-                                    value={blueprint.batchPhaseIds[batch]?.[phase.id] || ''}
+                                    value={blueprint.batchPhaseIds[batch]?.[phase.id] || phase.courseId || ''}
                                     onChange={(e) => updateBlueprintBatchId(batch, phase.id, e.target.value)}
                                     placeholder={`${phase.name} ID for ${batch}`}
                                     className="w-full bg-white/5 border border-brand-border rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
@@ -2147,53 +2448,30 @@ export default function App() {
                             </>
                           ) : (
                             <>
-                              <div className="col-span-2 space-y-3 p-4 bg-white/[0.03] rounded-2xl border border-brand-border">
-                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Mon/Wed/Fri &amp; Weekends</span>
-                                <div className="space-y-4">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <TimeInput12h 
-                                      label="Start Time"
-                                      value={slot.startTime}
-                                      onChange={(val) => updateTimeSlot(slot.id, 'startTime', val)}
-                                    />
-                                    <TimeInput12h 
-                                      label="End Time"
-                                      value={slot.endTime}
-                                      onChange={(val) => updateTimeSlot(slot.id, 'endTime', val)}
-                                    />
-                                  </div>
-                                  <input 
-                                    type="text" 
-                                    value={slot.title}
-                                    onChange={(e) => updateTimeSlot(slot.id, 'title', e.target.value)}
-                                    placeholder="Mon/Wed/Fri Session Title..."
-                                    className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                              <div className="col-span-2 space-y-3">
+                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Base Q&A Session Time</span>
+                                <div className="grid grid-cols-2 gap-4">
+                                  <TimeInput12h 
+                                    label="Start Time"
+                                    value={slot.startTime}
+                                    onChange={(val) => updateTimeSlot(slot.id, 'startTime', val)}
+                                  />
+                                  <TimeInput12h 
+                                    label="End Time"
+                                    value={slot.endTime}
+                                    onChange={(val) => updateTimeSlot(slot.id, 'endTime', val)}
                                   />
                                 </div>
                               </div>
-                              <div className="col-span-2 space-y-3 p-4 bg-brand-accent-teal/10 rounded-2xl border border-brand-accent-teal/20">
-                                <span className="text-[10px] text-brand-accent-teal uppercase font-bold tracking-wide">Tue/Thu Overrides</span>
-                                <div className="space-y-4">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <TimeInput12h 
-                                      label="Tue/Thu Start Time"
-                                      value={slot.tueThuStartTime || slot.startTime}
-                                      onChange={(val) => updateTimeSlot(slot.id, 'tueThuStartTime', val)}
-                                    />
-                                    <TimeInput12h 
-                                      label="Tue/Thu End Time"
-                                      value={slot.tueThuEndTime || slot.endTime}
-                                      onChange={(val) => updateTimeSlot(slot.id, 'tueThuEndTime', val)}
-                                    />
-                                  </div>
-                                  <input 
-                                    type="text" 
-                                    value={slot.tueThuTitle || slot.title}
-                                    onChange={(e) => updateTimeSlot(slot.id, 'tueThuTitle', e.target.value)}
-                                    placeholder="Tue/Thu Session Title..."
-                                    className="w-full bg-white/5 border border-brand-accent-teal/30 rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-indigo-300 shadow-sm"
-                                  />
-                                </div>
+                              <div className="col-span-2 space-y-1.5">
+                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Base Q&A Title</span>
+                                <input 
+                                  type="text" 
+                                  value={slot.title}
+                                  onChange={(e) => updateTimeSlot(slot.id, 'title', e.target.value)}
+                                  placeholder="Session Title (e.g. Q&A session)..."
+                                  className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                                />
                               </div>
                             </>
                           )}
@@ -2317,113 +2595,170 @@ export default function App() {
 
                           {dayOption !== 'custom' && (
                             <div className="col-span-2 space-y-4">
-                              {/* General/MWF Instructors */}
-                              <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
-                                    <Users size={10} />
-                                    {slot.category === 'qna-sessions-aig' ? 'Mon/Wed/Fri Instructors *' : 'Instructors *'}
-                                  </span>
-                                  <button 
-                                    onClick={() => addInstructor(slot.id)}
-                                    className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
-                                  >
-                                    <Plus size={10} />
-                                    Add Instructor
-                                  </button>
-                                </div>
+                              {slot.category === 'live-sessions-aig' ? (
+                                /* Standard LIVE Instructors */
                                 <div className="space-y-3">
-                                  {slot.instructors.map((inst, idx) => (
-                                    <SearchableInput 
-                                      key={`mwf-${idx}`}
-                                      value={inst}
-                                      onChange={(val) => updateInstructor(slot.id, idx, val)}
-                                      recentOptions={recentInstructors}
-                                      isMandatory={idx === 0}
-                                      showRemove={idx > 0}
-                                      onRemove={() => removeInstructor(slot.id, idx)}
-                                      placeholder="Instructor ID"
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-
-                              {/* Q&A specific instructor fields */}
-                              {slot.category === 'qna-sessions-aig' && (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-brand-border">
-                                  {/* Tuesday Instructors */}
-                                  <div className="space-y-3">
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-[10px] text-brand-accent-teal uppercase font-bold tracking-wide flex items-center gap-1.5">
-                                        <Users size={10} />
-                                        Tue Instructors *
-                                      </span>
-                                      <button 
-                                        onClick={() => updateTimeSlot(slot.id, 'instructorsTue', [...(slot.instructorsTue || []), ''])}
-                                        className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
-                                      >
-                                        <Plus size={10} />
-                                        Add
-                                      </button>
-                                    </div>
-                                    <div className="space-y-3">
-                                      {(slot.instructorsTue || ['']).map((inst, idx) => (
-                                        <SearchableInput 
-                                          key={`tue-${idx}`}
-                                          value={inst}
-                                          onChange={(val) => {
-                                            const newArr = [...(slot.instructorsTue || [''])];
-                                            newArr[idx] = val;
-                                            updateTimeSlot(slot.id, 'instructorsTue', newArr);
-                                          }}
-                                          recentOptions={recentInstructors}
-                                          isMandatory={idx === 0}
-                                          showRemove={idx > 0}
-                                          onRemove={() => {
-                                            const newArr = (slot.instructorsTue || ['']).filter((_, i) => i !== idx);
-                                            updateTimeSlot(slot.id, 'instructorsTue', newArr);
-                                          }}
-                                          placeholder="Tue Instructor ID"
-                                        />
-                                      ))}
-                                    </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
+                                      <Users size={10} />
+                                      Instructors *
+                                    </span>
+                                    <button 
+                                      type="button"
+                                      onClick={() => addInstructor(slot.id)}
+                                      className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
+                                    >
+                                      <Plus size={10} />
+                                      Add Instructor
+                                    </button>
                                   </div>
-                                  {/* Thursday Instructors */}
                                   <div className="space-y-3">
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-[10px] text-brand-accent-teal uppercase font-bold tracking-wide flex items-center gap-1.5">
-                                        <Users size={10} />
-                                        Thu Instructors *
-                                      </span>
-                                      <button 
-                                        onClick={() => updateTimeSlot(slot.id, 'instructorsThu', [...(slot.instructorsThu || []), ''])}
-                                        className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
-                                      >
-                                        <Plus size={10} />
-                                        Add
-                                      </button>
-                                    </div>
-                                    <div className="space-y-3">
-                                      {(slot.instructorsThu || ['']).map((inst, idx) => (
-                                        <SearchableInput 
-                                          key={`thu-${idx}`}
-                                          value={inst}
-                                          onChange={(val) => {
-                                            const newArr = [...(slot.instructorsThu || [''])];
-                                            newArr[idx] = val;
-                                            updateTimeSlot(slot.id, 'instructorsThu', newArr);
-                                          }}
-                                          recentOptions={recentInstructors}
-                                          isMandatory={idx === 0}
-                                          showRemove={idx > 0}
-                                          onRemove={() => {
-                                            const newArr = (slot.instructorsThu || ['']).filter((_, i) => i !== idx);
-                                            updateTimeSlot(slot.id, 'instructorsThu', newArr);
-                                          }}
-                                          placeholder="Thu Instructor ID"
-                                        />
-                                      ))}
-                                    </div>
+                                    {slot.instructors.map((inst, idx) => (
+                                      <SearchableInput 
+                                        key={`mwf-${idx}`}
+                                        value={inst}
+                                        onChange={(val) => updateInstructor(slot.id, idx, val)}
+                                        recentOptions={recentInstructors}
+                                        isMandatory={idx === 0}
+                                        showRemove={idx > 0}
+                                        onRemove={() => removeInstructor(slot.id, idx)}
+                                        placeholder="Instructor ID"
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : (
+                                /* Q&A Days Configuration */
+                                <div className="space-y-4">
+                                  <div className="border-b border-white/[0.05] pb-2">
+                                    <h4 className="text-xs font-bold text-slate-200 tracking-wide uppercase flex items-center gap-1.5">
+                                      <CalendarDays size={12} className="text-brand-accent-teal" />
+                                      Q&A Days Configuration
+                                    </h4>
+                                    <p className="text-[10px] text-slate-500 mt-1">
+                                      Select which days have Normal Q&A vs Open Mic Q&A, and configure their specific instructors, titles, and times.
+                                    </p>
+                                  </div>
+
+                                  <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
+                                    {activeDaysList.map((day) => {
+                                      const qnaConfig = getQnaDayConfig(slot, day.value);
+                                      const isOpenMic = qnaConfig.type === 'open-mic';
+
+                                      return (
+                                        <div 
+                                          key={`qna-day-${day.value}`}
+                                          className={`p-4 rounded-2xl border transition-all duration-300 ${
+                                            isOpenMic 
+                                              ? 'bg-brand-accent-teal/10 border-brand-accent-teal/20' 
+                                              : 'bg-white/[0.02] border-brand-border'
+                                          }`}
+                                        >
+                                          {/* Day Name & Toggle */}
+                                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                                            <span className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                                              isOpenMic ? 'text-brand-accent-teal' : 'text-slate-300'
+                                            }`}>
+                                              <Clock size={12} />
+                                              {day.label}
+                                            </span>
+
+                                            <div className="flex bg-white/5 border border-brand-border rounded-xl p-1 relative w-full sm:w-64 shadow-sm">
+                                              {(['normal', 'open-mic'] as const).map((t) => {
+                                                const isSelected = qnaConfig.type === t;
+                                                return (
+                                                  <button
+                                                    key={t}
+                                                    type="button"
+                                                    onClick={() => updateQnaDayConfig(slot.id, day.value, 'type', t)}
+                                                    className={`relative z-10 flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all duration-300 ${
+                                                      isSelected 
+                                                        ? 'text-white' 
+                                                        : 'text-slate-400 hover:text-slate-500'
+                                                    }`}
+                                                  >
+                                                    {isSelected && (
+                                                      <motion.div 
+                                                        layoutId={`qnaTypeBg-${slot.id}-${day.value}`}
+                                                        className={`absolute inset-0 rounded-lg -z-10 shadow-md ${
+                                                          isOpenMic ? 'bg-brand-accent-teal' : 'bg-brand-accent-violet'
+                                                        }`}
+                                                        transition={{ type: "spring", bounce: 0.1, duration: 0.4 }}
+                                                      />
+                                                    )}
+                                                    {t === 'normal' ? 'Normal Q&A' : 'Open Mic Q&A'}
+                                                  </button>
+                                                );
+                                              })}
+                                            </div>
+                                          </div>
+
+                                          {/* Sub-config: Title and Times */}
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 pt-3 border-t border-white/[0.05]">
+                                            {/* Custom Times */}
+                                            <div className="space-y-2">
+                                              <span className="text-[9px] text-slate-400 uppercase font-bold tracking-wide">Time Override</span>
+                                              <div className="grid grid-cols-2 gap-2">
+                                                <TimeInput12h 
+                                                  label="Start Time"
+                                                  value={qnaConfig.startTime || slot.startTime}
+                                                  onChange={(val) => updateQnaDayConfig(slot.id, day.value, 'startTime', val)}
+                                                />
+                                                <TimeInput12h 
+                                                  label="End Time"
+                                                  value={qnaConfig.endTime || slot.endTime}
+                                                  onChange={(val) => updateQnaDayConfig(slot.id, day.value, 'endTime', val)}
+                                                />
+                                              </div>
+                                            </div>
+
+                                            {/* Custom Title */}
+                                            <div className="space-y-2">
+                                              <span className="text-[9px] text-slate-400 uppercase font-bold tracking-wide">Session Title Override</span>
+                                              <input 
+                                                type="text" 
+                                                value={qnaConfig.title || ''}
+                                                onChange={(e) => updateQnaDayConfig(slot.id, day.value, 'title', e.target.value)}
+                                                placeholder={isOpenMic ? "Open Mic Q&A Session" : "Default Q&A title"}
+                                                className="w-full bg-white/5 border border-brand-border rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                                              />
+                                            </div>
+                                          </div>
+
+                                          {/* Instructor Configuration */}
+                                          <div className="space-y-3 pt-3 border-t border-white/[0.05]">
+                                            <div className="flex items-center justify-between">
+                                              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
+                                                <Users size={10} />
+                                                Instructors *
+                                              </span>
+                                              <button 
+                                                type="button"
+                                                onClick={() => addQnaInstructor(slot.id, day.value)}
+                                                className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
+                                              >
+                                                <Plus size={10} />
+                                                Add Instructor
+                                              </button>
+                                            </div>
+                                            <div className="space-y-3">
+                                              {qnaConfig.instructors.map((inst, idx) => (
+                                                <SearchableInput 
+                                                  key={`qna-inst-${day.value}-${idx}`}
+                                                  value={inst}
+                                                  onChange={(val) => updateQnaInstructor(slot.id, day.value, idx, val)}
+                                                  recentOptions={recentInstructors}
+                                                  isMandatory={idx === 0}
+                                                  showRemove={idx > 0}
+                                                  onRemove={() => removeQnaInstructor(slot.id, day.value, idx)}
+                                                  placeholder="Instructor ID"
+                                                />
+                                              ))}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 </div>
                               )}
