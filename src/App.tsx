@@ -62,7 +62,7 @@ type CustomDayConfig = {
   endTime: string;   // HH:mm
   title: string;
   link?: string;
-  category?: 'live-sessions-aig' | 'qna-sessions-aig';
+  category?: 'live-sessions-aig' | 'qna-sessions-aig' | 'qna-sessions-bsiai';
   instructors?: string[];
 };
 
@@ -89,7 +89,7 @@ type TimeSlot = {
   saturdayLink: string; // For LIVE
   sundayLink: string;   // For LIVE
   sessionPlatform: 'ZOOM' | 'MEET';
-  category: 'qna-sessions-aig' | 'live-sessions-aig';
+  category: 'qna-sessions-aig' | 'live-sessions-aig' | 'qna-sessions-bsiai';
   instructors: string[];
   instructorsTue?: string[];
   instructorsThu?: string[];
@@ -636,6 +636,13 @@ export default function App() {
   const [recentInstructors, setRecentInstructors] = useState<string[]>([]);
   const [recentBatches, setRecentBatches] = useState<string[]>([]);
   const [recentCourses, setRecentCourses] = useState<string[]>([]);
+  const [customLiveCategories, setCustomLiveCategories] = useState<{label: string, slug: string}[]>(() => {
+    const saved = localStorage.getItem('custom_live_categories');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [newCatLabel, setNewCatLabel] = useState('');
+  const [newCatSlug, setNewCatSlug] = useState('');
   const [blueprint, setBlueprint] = useState<CurriculumBlueprint>(DEFAULT_CURRICULUM_BLUEPRINT);
   const [isParsingImage, setIsParsingImage] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
@@ -747,6 +754,17 @@ export default function App() {
     const updated = Array.from(new Set([...courses.filter(c => c.trim() !== ''), ...recentCourses])).slice(0, 10);
     setRecentCourses(updated);
     localStorage.setItem('recentCourses', JSON.stringify(updated));
+  };
+
+  const handleAddCustomCategory = () => {
+    if (newCatLabel.trim() && newCatSlug.trim()) {
+      const updated = [...customLiveCategories, { label: newCatLabel.trim(), slug: newCatSlug.trim() }];
+      setCustomLiveCategories(updated);
+      localStorage.setItem('custom_live_categories', JSON.stringify(updated));
+      setNewCatLabel('');
+      setNewCatSlug('');
+      setShowCategoryModal(false);
+    }
   };
 
   const updateBlueprintBatchId = (batch: string, phaseId: string, courseId: string) => {
@@ -1566,10 +1584,10 @@ export default function App() {
 
     // Validation for mandatory fields
     const invalidSlot = timeSlots.find(slot => {
-      const isQnA = slot.category === 'qna-sessions-aig';
+      const isQnA = slot.category.startsWith('qna-sessions');
       const isCustom = dayOption === 'custom';
       
-      if (!slot.batch || !slot.batch[0] || slot.batch[0].trim() === '') return true;
+      // if (!slot.batch || !slot.batch[0] || slot.batch[0].trim() === '') return true;
 
       if (isCustom) {
         if (customDays.length === 0) return true;
@@ -1657,7 +1675,7 @@ export default function App() {
               finalCategory = customConfig.category;
             }
           }
-        } else if (slot.category === 'qna-sessions-aig') {
+        } else if (slot.category.startsWith('qna-sessions')) {
           const qnaConfig = getQnaDayConfig(slot, dayOfWeek);
           currentStartTime = qnaConfig.startTime || slot.startTime;
           currentEndTime = qnaConfig.endTime || slot.endTime;
@@ -1689,7 +1707,7 @@ export default function App() {
         if (dayOption === 'custom') {
           const customConfig = slot.customDayConfigs?.[dayOfWeek];
           sessionLink = (customConfig && customConfig.link) ? customConfig.link : slot.sessionLink;
-        } else if (slot.category === 'qna-sessions-aig') {
+        } else if (slot.category.startsWith('qna-sessions')) {
           sessionLink = slot.sessionLink;
         } else {
           // Sunday (0) uses sundayLink, others use saturdayLink
@@ -1740,7 +1758,7 @@ export default function App() {
           if (customConfig && customConfig.instructors && customConfig.instructors.length > 0 && customConfig.instructors[0].trim() !== '') {
             currentInstructors = customConfig.instructors;
           }
-        } else if (finalCategory === 'qna-sessions-aig') {
+        } else if (finalCategory.startsWith('qna-sessions')) {
           const qnaConfig = getQnaDayConfig(slot, dayOfWeek);
           if (qnaConfig && qnaConfig.instructors && qnaConfig.instructors.length > 0 && qnaConfig.instructors[0].trim() !== '') {
             currentInstructors = qnaConfig.instructors;
@@ -2338,7 +2356,7 @@ export default function App() {
                                           <div className="space-y-1.5">
                                             <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Category</span>
                                             <div className="flex bg-white/5 border border-brand-border rounded-xl p-1 relative shadow-sm">
-                                              {(['live-sessions-aig', 'qna-sessions-aig'] as const).map((c) => (
+                                              {(['live-sessions-aig', 'qna-sessions-aig', 'qna-sessions-bsiai', ...customLiveCategories.map(c => c.slug)] as string[]).map((c) => (
                                                 <button
                                                   key={c}
                                                   type="button"
@@ -2349,9 +2367,10 @@ export default function App() {
                                                       : 'text-slate-400 hover:text-slate-200'
                                                   }`}
                                                 >
-                                                  {c === 'qna-sessions-aig' ? 'Q&A' : 'LIVE'}
+                                                  {c === 'qna-sessions-aig' ? 'Q&A' : c === 'qna-sessions-bsiai' ? 'BSIAI Q&A' : c === 'live-sessions-aig' ? 'LIVE' : customLiveCategories.find(cat => cat.slug === c)?.label || c}
                                                 </button>
                                               ))}
+                                              <button type="button" onClick={() => setShowCategoryModal(true)} className="relative z-10 px-2 py-1.5 text-[9px] font-bold rounded-lg text-slate-400 hover:text-white transition-all flex items-center justify-center bg-white/5 ml-1">+ Add</button>
                                             </div>
                                           </div>
                                           <div className="space-y-1.5">
@@ -2506,7 +2525,7 @@ export default function App() {
                             <div className="space-y-1.5">
                               <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Category</span>
                               <div className="flex bg-white/5 border border-brand-border rounded-xl p-1 relative shadow-sm">
-                                {(['qna-sessions-aig', 'live-sessions-aig'] as const).map((c) => (
+                                {(['qna-sessions-aig', 'qna-sessions-bsiai', 'live-sessions-aig', ...customLiveCategories.map(c => c.slug)] as string[]).map((c) => (
                                   <button
                                     key={c}
                                     onClick={() => updateTimeSlot(slot.id, 'category', c)}
@@ -2523,9 +2542,10 @@ export default function App() {
                                         transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                       />
                                     )}
-                                    {c === 'qna-sessions-aig' ? 'Q&A' : 'LIVE'}
+                                    {c === 'qna-sessions-aig' ? 'Q&A' : c === 'qna-sessions-bsiai' ? 'BSIAI Q&A' : c === 'live-sessions-aig' ? 'LIVE' : customLiveCategories.find(cat => cat.slug === c)?.label || c}
                                   </button>
                                 ))}
+                                <button type="button" onClick={() => setShowCategoryModal(true)} className="relative z-10 px-2 py-2 text-[9px] font-bold rounded-lg text-slate-400 hover:text-white transition-all flex items-center justify-center bg-white/5 ml-1">+ Add</button>
                               </div>
                             </div>
                           )}
@@ -2533,7 +2553,7 @@ export default function App() {
                           {dayOption !== 'custom' && (
                             <div className="col-span-2">
                               <AnimatePresence mode="wait">
-                                {slot.category === 'qna-sessions-aig' ? (
+                                {slot.category.startsWith('qna-sessions') ? (
                                   <motion.div 
                                     key="single-link"
                                     initial={{ opacity: 0, height: 0 }}
@@ -2769,7 +2789,7 @@ export default function App() {
                             <div className="flex items-center justify-between">
                               <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
                                 <Users size={10} />
-                                Batch ID/Name *
+                                Batch ID/Name
                               </span>
                               <button 
                                 onClick={() => addBatch(slot.id)}
@@ -2786,7 +2806,7 @@ export default function App() {
                                   value={b}
                                   onChange={(val) => updateBatch(slot.id, idx, val)}
                                   recentOptions={recentBatches}
-                                  isMandatory={idx === 0}
+                                  isMandatory={false}
                                   showRemove={idx > 0}
                                   onRemove={() => removeBatch(slot.id, idx)}
                                   placeholder="Batch ID"
@@ -2795,7 +2815,7 @@ export default function App() {
                             </div>
                           </div>
 
-                          {slot.category === 'qna-sessions-aig' && (
+                          {slot.category.startsWith('qna-sessions') && (
                             <div className="col-span-2 space-y-3">
                               <div className="flex items-center justify-between">
                                 <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
@@ -3049,6 +3069,92 @@ export default function App() {
             <span>All Systems Operational</span>
           </div>
         </footer>
+
+        <AnimatePresence>
+          {showCategoryModal && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            >
+              <motion.div 
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-brand-surface w-full max-w-md rounded-3xl p-6 border border-brand-border shadow-2xl relative"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Plus size={20} className="text-brand-accent-violet" />
+                    Add Custom Category
+                  </h3>
+                  <button 
+                    onClick={() => setShowCategoryModal(false)}
+                    className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/5 transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Label (e.g. Masterclass)</label>
+                    <input 
+                      type="text"
+                      value={newCatLabel}
+                      onChange={(e) => setNewCatLabel(e.target.value)}
+                      placeholder="Category Name"
+                      className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-accent-violet/50 text-slate-200 placeholder:text-slate-500"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Slug (e.g. live-sessions-mc)</label>
+                    <input 
+                      type="text"
+                      value={newCatSlug}
+                      onChange={(e) => setNewCatSlug(e.target.value)}
+                      placeholder="live-sessions-xyz"
+                      className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-brand-accent-violet/50 text-slate-200 placeholder:text-slate-500"
+                    />
+                  </div>
+                  <button 
+                    onClick={handleAddCustomCategory}
+                    disabled={!newCatLabel.trim() || !newCatSlug.trim()}
+                    className="w-full mt-4 bg-brand-accent-violet hover:bg-brand-accent-violet/80 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl text-sm font-bold transition-all shadow-glow"
+                  >
+                    Add Category
+                  </button>
+
+                  {customLiveCategories.length > 0 && (
+                    <div className="mt-6 pt-6 border-t border-brand-border space-y-3">
+                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Custom Categories</h4>
+                      {customLiveCategories.map((cat, idx) => (
+                        <div key={idx} className="flex items-center justify-between bg-white/5 px-4 py-2.5 rounded-xl border border-brand-border">
+                          <div>
+                            <p className="text-sm font-bold text-white">{cat.label}</p>
+                            <p className="text-[10px] text-slate-400 font-mono">{cat.slug}</p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              const updated = customLiveCategories.filter((_, i) => i !== idx);
+                              setCustomLiveCategories(updated);
+                              localStorage.setItem('custom_live_categories', JSON.stringify(updated));
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-red-400 transition-colors rounded-lg hover:bg-white/5"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
       </div>
 
       <style>{`
