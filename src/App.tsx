@@ -51,7 +51,7 @@ import {
   Zap,
   Upload,
   Image as ImageIcon
-} from 'lucide-react';
+, Link as LinkIcon} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 // Types
@@ -470,7 +470,7 @@ const SortableSession = ({ session, phaseId, onRename, onDelete }: {
   );
 };
 
-const SortablePhase = ({ phase, onRenameSession, onDeleteSession, onAddSession, onDeletePhase, onRenamePhase }: { 
+const SortablePhase = ({ phase, onRenameSession, onDeleteSession, onAddSession, onDeletePhase, onRenamePhase, onUpdatePhase }: { 
   key?: string;
   phase: CurriculumPhase;
   onRenameSession: (phaseId: string, sessionId: string, newTitle: string) => void;
@@ -478,6 +478,7 @@ const SortablePhase = ({ phase, onRenameSession, onDeleteSession, onAddSession, 
   onAddSession: (phaseId: string) => void;
   onDeletePhase: (phaseId: string) => void;
   onRenamePhase: (phaseId: string, newName: string) => void;
+  onUpdatePhase: (phaseId: string, updates: Partial<CurriculumPhase>) => void;
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
     id: phase.id,
@@ -536,6 +537,92 @@ const SortablePhase = ({ phase, onRenameSession, onDeleteSession, onAddSession, 
           >
             <Trash2 size={14} />
           </button>
+        </div>
+      </div>
+      
+      <div className="flex flex-col gap-2 bg-black/20 p-2 rounded-xl border border-white/5">
+        <div className="flex items-center gap-2">
+          <label className="text-[10px] text-slate-400 uppercase font-bold w-12 shrink-0">Day</label>
+          <div className="flex flex-wrap gap-1 flex-1">
+            {[{l:'S',v:0}, {l:'M',v:1}, {l:'T',v:2}, {l:'W',v:3}, {l:'T',v:4}, {l:'F',v:5}, {l:'S',v:6}].map(d => {
+              const isActive = phase.daysOfWeek?.includes(d.v) || (phase.daysOfWeek === undefined && phase.dayOfWeek === d.v);
+              return (
+                <button
+                  key={d.v}
+                  onClick={() => {
+                    let current = phase.daysOfWeek;
+                    if (!current) {
+                      current = (phase.dayOfWeek !== undefined && phase.dayOfWeek !== 'all') ? [phase.dayOfWeek] : [];
+                    }
+                    if (current.includes(d.v)) {
+                      onUpdatePhase(phase.id, { daysOfWeek: current.filter(x => x !== d.v), dayOfWeek: 'all' });
+                    } else {
+                      onUpdatePhase(phase.id, { daysOfWeek: [...current, d.v], dayOfWeek: 'all' });
+                    }
+                  }}
+                  className={`w-6 h-6 rounded-md text-[10px] font-bold flex items-center justify-center transition-colors ${isActive ? 'bg-brand-accent-violet text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}
+                >
+                  {d.l}
+                </button>
+              );
+            })}
+            {((!phase.daysOfWeek || phase.daysOfWeek.length === 0) && (phase.dayOfWeek === undefined || phase.dayOfWeek === 'all')) && <span className="text-[10px] text-slate-500 ml-1 leading-6 italic">Any</span>}
+          </div>
+        </div>
+        {(() => {
+          const activeDays = phase.daysOfWeek && phase.daysOfWeek.length > 0 
+            ? phase.daysOfWeek 
+            : (phase.dayOfWeek !== undefined && phase.dayOfWeek !== 'all' ? [phase.dayOfWeek] : []);
+            
+          if (activeDays.length > 0) {
+            return (
+              <div className="flex flex-col gap-1.5 mt-2 pt-2 border-t border-white/10">
+                {activeDays.sort().map(dayVal => {
+                  const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dayVal];
+                  const st = phase.dayTimes?.[dayVal]?.startTime || phase.startTime || '';
+                  const et = phase.dayTimes?.[dayVal]?.endTime || phase.endTime || '';
+                  
+                  return (
+                    <div key={dayVal} className="flex items-center gap-2">
+                      <label className="text-[10px] text-brand-accent-teal uppercase font-bold w-12 shrink-0">{dayName}</label>
+                      <div className="flex flex-col 2xl:flex-row items-start 2xl:items-center gap-1 flex-1">
+                        <div onPointerDown={(e) => e.stopPropagation()} className="w-full 2xl:w-auto 2xl:flex-1 min-w-0"><TimeInput12h value={st || '00:00'} onChange={(val) => onUpdatePhase(phase.id, { dayTimes: { ...(phase.dayTimes || {}), [dayVal]: { startTime: val, endTime: et } } })} /></div>
+                        <span className="hidden 2xl:block text-[10px] text-slate-500">-</span>
+                        <div onPointerDown={(e) => e.stopPropagation()} className="w-full 2xl:w-auto 2xl:flex-1 min-w-0"><TimeInput12h value={et || '00:00'} onChange={(val) => onUpdatePhase(phase.id, { dayTimes: { ...(phase.dayTimes || {}), [dayVal]: { startTime: st, endTime: val } } })} /></div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          } else {
+            return (
+              <div className="flex items-center gap-2">
+                <label className="text-[10px] text-slate-400 uppercase font-bold w-12 shrink-0">Time</label>
+                <div className="flex flex-col 2xl:flex-row items-start 2xl:items-center gap-1 flex-1">
+                  <div onPointerDown={(e) => e.stopPropagation()} className="w-full 2xl:w-auto 2xl:flex-1 min-w-0"><TimeInput12h value={phase.startTime || '00:00'} onChange={(val) => onUpdatePhase(phase.id, { startTime: val })} /></div>
+                  <span className="hidden 2xl:block text-[10px] text-slate-500">-</span>
+                  <div onPointerDown={(e) => e.stopPropagation()} className="w-full 2xl:w-auto 2xl:flex-1 min-w-0"><TimeInput12h value={phase.endTime || '00:00'} onChange={(val) => onUpdatePhase(phase.id, { endTime: val })} /></div>
+                </div>
+              </div>
+            );
+          }
+        })()}
+        
+        {/* Phase Meta Data */}
+        <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-white/10">
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] text-slate-400 uppercase font-bold w-16 shrink-0">Instructor IDs</label>
+            <input 
+              type="text" 
+              value={(phase.instructors || []).join(', ')}
+              onChange={(e) => onUpdatePhase(phase.id, { instructors: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+              placeholder="Instructor ID"
+              className="flex-1 bg-white/5 border border-brand-border rounded-lg px-2 py-1 text-[10px] font-semibold text-slate-200 focus:outline-none focus:ring-1 focus:ring-brand-accent-violet/50"
+              onPointerDown={(e) => e.stopPropagation()}
+            />
+          </div>
+
         </div>
       </div>
       
@@ -600,6 +687,130 @@ function parseCSV(text: string): string[][] {
   return lines.filter(r => r.length > 0 && r.some(cell => cell !== ''));
 }
 
+const TimeInput12h = ({ value, onChange, label }: { value: string, onChange: (val: string) => void, label?: string }) => {
+    const [h24, m] = value.split(':').map(Number);
+    const period = h24 >= 12 ? 'PM' : 'AM';
+    const h12 = h24 % 12 || 12;
+
+    const [isHourOpen, setIsHourOpen] = useState(false);
+    const [isMinuteOpen, setIsMinuteOpen] = useState(false);
+    
+    const hourRef = useRef<HTMLDivElement>(null);
+    const minuteRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (hourRef.current && !hourRef.current.contains(event.target as Node)) {
+          setIsHourOpen(false);
+        }
+        if (minuteRef.current && !minuteRef.current.contains(event.target as Node)) {
+          setIsMinuteOpen(false);
+        }
+      };
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const updateTime = (newH12: number, newM: number, newPeriod: 'AM' | 'PM') => {
+      let newH24 = newH12;
+      if (newPeriod === 'PM' && newH12 < 12) newH24 += 12;
+      if (newPeriod === 'AM' && newH12 === 12) newH24 = 0;
+      onChange(`${newH24.toString().padStart(2, '0')}:${newM.toString().padStart(2, '0')}`);
+    };
+
+    return (
+      <div className={`${label ? 'space-y-1.5' : ''} ${isHourOpen || isMinuteOpen ? 'relative z-[100]' : ''}`}>
+        {label && <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">{label}</span>}
+        <div className="flex items-center justify-between bg-white/5 border border-brand-border rounded-xl px-2 py-1.5 shadow-sm  focus-within:ring-brand-accent-violet/20 focus-within:border-brand-accent-violet/50 transition-all">
+          
+          {/* Hour Selector */}
+          <div className={`relative ${isHourOpen ? 'z-[100]' : ''}`} ref={hourRef}>
+            <button 
+              type="button"
+              onClick={() => { setIsHourOpen(!isHourOpen); setIsMinuteOpen(false); }}
+              className="text-xs font-semibold focus:outline-none cursor-pointer text-slate-200 hover:text-brand-accent-teal transition-colors min-w-[18px] text-center"
+            >
+              {h12}
+            </button>
+            <AnimatePresence>
+              {isHourOpen && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-32 bg-[#09090b] border border-brand-border rounded-xl shadow-2xl z-[100] p-2 grid grid-cols-3 gap-1"
+                >
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
+                    <button
+                      key={h}
+                      type="button"
+                      onClick={() => { updateTime(h, m, period); setIsHourOpen(false); }}
+                      className={`h-9 rounded-lg text-xs transition-all flex items-center justify-center ${
+                        h12 === h 
+                          ? 'bg-brand-accent-violet text-white font-bold shadow-md' 
+                          : 'text-slate-400 hover:bg-brand-accent-teal/10 hover:text-brand-accent-teal'
+                      }`}
+                    >
+                      {h}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <span className="text-slate-500 font-bold">:</span>
+
+          {/* Minute Selector */}
+          <div className={`relative ${isMinuteOpen ? 'z-[100]' : ''}`} ref={minuteRef}>
+            <button 
+              type="button"
+              onClick={() => { setIsMinuteOpen(!isMinuteOpen); setIsHourOpen(false); }}
+              className="text-xs font-semibold focus:outline-none cursor-pointer text-slate-200 hover:text-brand-accent-teal transition-colors min-w-[18px] text-center"
+            >
+              {m.toString().padStart(2, '0')}
+            </button>
+            <AnimatePresence>
+              {isMinuteOpen && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 8 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-[#09090b] border border-brand-border rounded-xl shadow-2xl z-[100] p-2 grid grid-cols-5 gap-1 max-h-[240px] overflow-y-auto custom-scrollbar"
+                >
+                  {Array.from({ length: 60 }, (_, i) => i).map(min => (
+                    <button
+                      key={min}
+                      type="button"
+                      onClick={() => { updateTime(h12, min, period); setIsMinuteOpen(false); }}
+                      className={`h-8 rounded-lg text-[10px] transition-all flex items-center justify-center ${
+                        m === min 
+                          ? 'bg-brand-accent-violet text-white font-bold shadow-md' 
+                          : 'text-slate-400 hover:bg-brand-accent-teal/10 hover:text-brand-accent-teal'
+                      }`}
+                    >
+                      {min.toString().padStart(2, '0')}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <button 
+            type="button"
+            onClick={() => updateTime(h12, m, period === 'AM' ? 'PM' : 'AM')}
+            className="ml-1 px-2.5 py-1 bg-white/[0.1] rounded-lg text-[10px] font-bold text-slate-500 hover:bg-gradient-to-r from-brand-accent-violet to-brand-accent-teal border-none shadow-glow text-white hover:text-white transition-all uppercase tracking-tight"
+          >
+            {period}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
 export default function App() {
   // State
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -650,10 +861,14 @@ export default function App() {
   const [hasSavedData, setHasSavedData] = useState(false);
   const [lastGeneratedTime, setLastGeneratedTime] = useState<string | null>(null);
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [scheduleCategoryFilter, setScheduleCategoryFilter] = useState<string>('all');
+  const [includeLiveSessions, setIncludeLiveSessions] = useState<boolean>(true);
+  const [includeQnaSessions, setIncludeQnaSessions] = useState<boolean>(false);
 
   const currentActiveBatches = Array.from(new Set([
     ...recentBatches,
-    ...timeSlots.flatMap(s => s.batch.filter(b => b.trim() !== ''))
+    ...timeSlots.flatMap(s => s.batch.filter(b => b.trim() !== '')),
+    ...(blueprint.globalBatches || []).filter(b => b.trim() !== '')
   ]));
 
   const DAYS_LIST = [
@@ -960,6 +1175,17 @@ export default function App() {
     localStorage.setItem('curriculum_blueprint', JSON.stringify(newBlueprint));
   };
 
+  const updatePhase = (phaseId: string, updates: Partial<CurriculumPhase>) => {
+    const newBlueprint = {
+      ...blueprint,
+      phases: blueprint.phases.map(p => 
+        p.id === phaseId ? { ...p, ...updates } : p
+      )
+    };
+    setBlueprint(newBlueprint);
+    localStorage.setItem('curriculum_blueprint', JSON.stringify(newBlueprint));
+  };
+
   const renamePhase = (phaseId: string, newName: string) => {
     const newBlueprint = {
       ...blueprint,
@@ -1166,6 +1392,7 @@ export default function App() {
 
   // Session Count Logic
   const sessionCount = (() => {
+    let count = 0;
     const start = parse(startDate, 'yyyy-MM-dd', new Date());
     const end = parse(endDate, 'yyyy-MM-dd', new Date());
 
@@ -1178,7 +1405,17 @@ export default function App() {
       return customDays.includes(getDay(date));
     });
 
-    return filteredDays.length * timeSlots.length;
+    if (includeQnaSessions) {
+      count += filteredDays.length * timeSlots.length;
+    }
+    if (includeLiveSessions) {
+      const curriculumManagerList = blueprint.phases.flatMap(p => 
+        p.sessions.map(s => ({ name: s.title, phaseId: p.id, phase: p }))
+      );
+      count += curriculumManagerList.length;
+    }
+
+    return count;
   })();
 
   // Handlers
@@ -1230,7 +1467,7 @@ export default function App() {
       endTime: config?.endTime || slot.endTime,
       title: config !== undefined ? config.title : slot.title,
       link: config?.link || '',
-      category: config?.category || 'live-sessions-aig',
+      category: config?.category || 'qna-sessions-aig',
       instructors: config?.instructors !== undefined ? config.instructors : slot.instructors
     };
   };
@@ -1249,7 +1486,7 @@ export default function App() {
           endTime: slot.endTime,
           title: slot.title,
           link: '',
-          category: 'live-sessions-aig',
+          category: 'qna-sessions-aig',
           instructors: slot.instructors
         };
         return {
@@ -1443,201 +1680,29 @@ export default function App() {
     }
   };
 
-  const TimeInput12h = ({ value, onChange, label }: { value: string, onChange: (val: string) => void, label: string }) => {
-    const [h24, m] = value.split(':').map(Number);
-    const period = h24 >= 12 ? 'PM' : 'AM';
-    const h12 = h24 % 12 || 12;
-
-    const [isHourOpen, setIsHourOpen] = useState(false);
-    const [isMinuteOpen, setIsMinuteOpen] = useState(false);
-    
-    const hourRef = useRef<HTMLDivElement>(null);
-    const minuteRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-      const handleClickOutside = (event: MouseEvent) => {
-        if (hourRef.current && !hourRef.current.contains(event.target as Node)) {
-          setIsHourOpen(false);
-        }
-        if (minuteRef.current && !minuteRef.current.contains(event.target as Node)) {
-          setIsMinuteOpen(false);
-        }
-      };
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const updateTime = (newH12: number, newM: number, newPeriod: 'AM' | 'PM') => {
-      let newH24 = newH12;
-      if (newPeriod === 'PM' && newH12 < 12) newH24 += 12;
-      if (newPeriod === 'AM' && newH12 === 12) newH24 = 0;
-      onChange(`${newH24.toString().padStart(2, '0')}:${newM.toString().padStart(2, '0')}`);
-    };
-
-    return (
-      <div className={`space-y-1.5 ${isHourOpen || isMinuteOpen ? 'relative z-[100]' : ''}`}>
-        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">{label}</span>
-        <div className="flex items-center gap-1.5 bg-white/5 border border-brand-border rounded-xl px-3 py-2 shadow-sm  focus-within:ring-brand-accent-violet/20 focus-within:border-brand-accent-violet/50 transition-all">
-          
-          {/* Hour Selector */}
-          <div className={`relative ${isHourOpen ? 'z-[100]' : ''}`} ref={hourRef}>
-            <button 
-              type="button"
-              onClick={() => { setIsHourOpen(!isHourOpen); setIsMinuteOpen(false); }}
-              className="text-sm font-semibold focus:outline-none cursor-pointer text-slate-200 hover:text-brand-accent-teal transition-colors min-w-[24px] text-center"
-            >
-              {h12}
-            </button>
-            <AnimatePresence>
-              {isHourOpen && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-32 bg-[#09090b] border border-brand-border rounded-xl shadow-2xl z-[100] p-2 grid grid-cols-3 gap-1"
-                >
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map(h => (
-                    <button
-                      key={h}
-                      type="button"
-                      onClick={() => { updateTime(h, m, period); setIsHourOpen(false); }}
-                      className={`h-9 rounded-lg text-xs transition-all flex items-center justify-center ${
-                        h12 === h 
-                          ? 'bg-brand-accent-violet text-white font-bold shadow-md' 
-                          : 'text-slate-400 hover:bg-brand-accent-teal/10 hover:text-brand-accent-teal'
-                      }`}
-                    >
-                      {h}
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          <span className="text-slate-500 font-bold">:</span>
-
-          {/* Minute Selector */}
-          <div className={`relative ${isMinuteOpen ? 'z-[100]' : ''}`} ref={minuteRef}>
-            <button 
-              type="button"
-              onClick={() => { setIsMinuteOpen(!isMinuteOpen); setIsHourOpen(false); }}
-              className="text-sm font-semibold focus:outline-none cursor-pointer text-slate-200 hover:text-brand-accent-teal transition-colors min-w-[24px] text-center"
-            >
-              {m.toString().padStart(2, '0')}
-            </button>
-            <AnimatePresence>
-              {isMinuteOpen && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-[#09090b] border border-brand-border rounded-xl shadow-2xl z-[100] p-2 grid grid-cols-5 gap-1 max-h-[240px] overflow-y-auto custom-scrollbar"
-                >
-                  {Array.from({ length: 60 }, (_, i) => i).map(min => (
-                    <button
-                      key={min}
-                      type="button"
-                      onClick={() => { updateTime(h12, min, period); setIsMinuteOpen(false); }}
-                      className={`h-8 rounded-lg text-[10px] transition-all flex items-center justify-center ${
-                        m === min 
-                          ? 'bg-brand-accent-violet text-white font-bold shadow-md' 
-                          : 'text-slate-400 hover:bg-brand-accent-teal/10 hover:text-brand-accent-teal'
-                      }`}
-                    >
-                      {min.toString().padStart(2, '0')}
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          <button 
-            type="button"
-            onClick={() => updateTime(h12, m, period === 'AM' ? 'PM' : 'AM')}
-            className="ml-1 px-2.5 py-1 bg-white/[0.1] rounded-lg text-[10px] font-bold text-slate-500 hover:bg-gradient-to-r from-brand-accent-violet to-brand-accent-teal border-none shadow-glow text-white hover:text-white transition-all uppercase tracking-tight"
-          >
-            {period}
-          </button>
-        </div>
-      </div>
-    );
-  };
-
   const generateSchedule = async () => {
     setIsGenerating(true);
     
-    // Simulate a brief loading state for "SaaS" feel
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    const start = parse(startDate, 'yyyy-MM-dd', new Date());
-    const end = parse(endDate, 'yyyy-MM-dd', new Date());
-
-    if (!isValid(start) || !isValid(end) || start > end) {
-      alert('Please select a valid date range.');
-      setIsGenerating(false);
-      return;
-    }
-
-    // Validation for mandatory fields
-    const invalidSlot = timeSlots.find(slot => {
-      const isQnA = slot.category.startsWith('qna-sessions');
-      const isCustom = dayOption === 'custom';
-      
-      // if (!slot.batch || !slot.batch[0] || slot.batch[0].trim() === '') return true;
-
-      if (isCustom) {
-        if (customDays.length === 0) return true;
-        const allDaysValid = customDays.every(dayVal => {
-          const cfg = getCustomDayConfig(slot, dayVal);
-          if (!cfg.link || cfg.link.trim() === '') return false;
-          if (!cfg.instructors || cfg.instructors.length === 0 || !cfg.instructors[0] || cfg.instructors[0].trim() === '') return false;
-          return true;
-        });
-        return !allDaysValid;
-      }
-
-      if (isQnA) {
-        if (!slot.sessionLink || slot.sessionLink.trim() === '') return true;
-        
-        const activeDays = dayOption === 'weekdays' ? [1, 2, 3, 4, 5] : [6, 0];
-        const allDaysHaveInstructors = activeDays.every(dayVal => {
-          const cfg = getQnaDayConfig(slot, dayVal);
-          return cfg && cfg.instructors && cfg.instructors[0] && cfg.instructors[0].trim() !== '';
-        });
-        return !allDaysHaveInstructors;
-      }
-
-      // Live Sessions (non-custom)
-      if (dayOption === 'weekends') {
-        if (!slot.saturdayLink || slot.saturdayLink.trim() === '') return true;
-        if (!slot.sundayLink || slot.sundayLink.trim() === '') return true;
-      } else {
-        if (!slot.sessionLink || slot.sessionLink.trim() === '') return true;
-      }
-
-      return !slot.instructors || slot.instructors.length === 0 || !slot.instructors[0] || slot.instructors[0].trim() === '';
-    });
-
-    if (invalidSlot) {
-      alert('Please fill in all mandatory fields (*) for all time slots (Session links, Instructor 1, and Batch).');
-      setIsGenerating(false);
-      return;
-    }
-
+    // Slight artificial delay for UX
+    await new Promise(resolve => setTimeout(resolve, 600));
+    
     // Save used instructors, batches and courses to memory
     const allUsedInstructors = timeSlots.flatMap(s => s.instructors);
     saveToRecentInstructors(allUsedInstructors);
     
-    const allUsedBatches = timeSlots.flatMap(s => s.batch);
+    const allUsedBatches = [...timeSlots.flatMap(s => s.batch), ...(blueprint.globalBatches || [])];
     saveToRecentBatches(allUsedBatches);
 
     const allUsedCourses = timeSlots.flatMap(s => s.course);
     saveToRecentCourses(allUsedCourses);
 
+    const start = parse(startDate, 'yyyy-MM-dd', new Date());
+    const end = parse(endDate, 'yyyy-MM-dd', new Date());
+    if (!isValid(start) || !isValid(end) || start > end) {
+      alert('Invalid date range.');
+      setIsGenerating(false);
+      return;
+    }
     const allDays = eachDayOfInterval({ start, end });
     const filteredDays = allDays.filter(date => {
       if (dayOption === 'weekdays') return !isWeekend(date);
@@ -1645,101 +1710,69 @@ export default function App() {
       return customDays.includes(getDay(date));
     });
 
-    const curriculumManagerList = blueprint.phases.flatMap(p => 
-      p.sessions.map(s => ({ name: s.title, phaseId: p.id }))
-    );
-    let liveSessionCounter = 0;
-
     const schedule: GeneratedRow[] = [];
-    const totalSessions = filteredDays.length * timeSlots.length;
-    let sessionIndex = 0;
-
-    filteredDays.forEach(date => {
-      const dayOfWeek = getDay(date); // 0 = Sunday, 6 = Saturday
+    console.log("Generating schedule...", { allDays: allDays.length, filteredDays: filteredDays.length, timeSlots: timeSlots.length, phases: blueprint.phases.length, includeQnaSessions, includeLiveSessions });
+    
+    // 1. Generate Q&A Sessions from timeSlots (if enabled)
+    if (includeQnaSessions) {
+      const totalSessions = filteredDays.length * timeSlots.length;
+      let sessionIndex = 0;
       
-      timeSlots.forEach(slot => {
-        let currentStartTime = slot.startTime;
-        let currentEndTime = slot.endTime;
-        let finalTitle = slot.title;
-        let finalCategory = slot.category;
+      filteredDays.forEach(date => {
+        const dayOfWeek = getDay(date); // 0 = Sunday, 6 = Saturday
         
-        if (dayOption === 'custom') {
-          const customConfig = slot.customDayConfigs?.[dayOfWeek];
-          if (customConfig) {
-            currentStartTime = customConfig.startTime || slot.startTime;
-            currentEndTime = customConfig.endTime || slot.endTime;
-            if (customConfig.title !== undefined && customConfig.title.trim() !== '') {
-              finalTitle = customConfig.title;
-            }
-            if (customConfig.category) {
-              finalCategory = customConfig.category;
-            }
+        timeSlots.forEach(slot => {
+          // Skip live sessions from timeSlots since they are now generated from curriculum
+          if (slot.category === 'live-sessions-aig' || customLiveCategories.some(c => c.slug === slot.category)) {
+            return;
           }
-        } else if (slot.category.startsWith('qna-sessions')) {
-          const qnaConfig = getQnaDayConfig(slot, dayOfWeek);
-          currentStartTime = qnaConfig.startTime || slot.startTime;
-          currentEndTime = qnaConfig.endTime || slot.endTime;
-          finalTitle = qnaConfig.title || (qnaConfig.type === 'open-mic' ? 'Open Mic Q&A Session' : slot.title);
-        } else {
-          if (slot.category === 'live-sessions-aig' && dayOfWeek === 0) {
-            currentStartTime = slot.sundayStartTime || slot.startTime;
-            currentEndTime = slot.sundayEndTime || slot.endTime;
-          }
-        }
-
-        const [startH, startM] = currentStartTime.split(':').map(Number);
-        const [endH, endM] = currentEndTime.split(':').map(Number);
-
-        const startDateTime = set(date, { hours: startH, minutes: startM, seconds: 0 });
-        let endDateTime = set(date, { hours: endH, minutes: endM, seconds: 0 });
-
-        // Date Rollover Detection: If EndTime is less than or equal to StartTime, it's the next day
-        if (endDateTime <= startDateTime) {
-          endDateTime = addDays(endDateTime, 1);
-        }
-
-        // Format for IST display: [Day] [Month] [Year] [Time] IST
-        const startStr = formatInTimeZone(startDateTime, IST_TIMEZONE, 'd MMMM yyyy hh:mm a') + ' IST';
-        const endStr = formatInTimeZone(endDateTime, IST_TIMEZONE, 'd MMMM yyyy hh:mm a') + ' IST';
-
-        // Conditional Session Link
-        let sessionLink = '';
-        if (dayOption === 'custom') {
-          const customConfig = slot.customDayConfigs?.[dayOfWeek];
-          sessionLink = (customConfig && customConfig.link) ? customConfig.link : slot.sessionLink;
-        } else if (slot.category.startsWith('qna-sessions')) {
-          sessionLink = slot.sessionLink;
-        } else {
-          // Sunday (0) uses sundayLink, others use saturdayLink
-          sessionLink = dayOfWeek === 0 ? slot.sundayLink : slot.saturdayLink;
-        }
-
-        // Course Logic
-        let courseValue = '';
-        const activeCourses = slot.course.filter(c => c.trim() !== '');
-        const activeBatches = slot.batch.filter(b => b.trim() !== '');
-        
-        if (finalCategory === 'live-sessions-aig' && dayOption !== 'custom') {
-          if (curriculumManagerList.length > 0) {
-            if (liveSessionCounter >= curriculumManagerList.length) {
-              // Curriculum exhausted, skip generating further sessions of this type
-              return;
+          
+          let currentStartTime = slot.startTime;
+          let currentEndTime = slot.endTime;
+          let finalTitle = slot.title;
+          let finalCategory = slot.category;
+          
+          if (dayOption === 'custom') {
+            const customConfig = slot.customDayConfigs?.[dayOfWeek];
+            if (customConfig) {
+              currentStartTime = customConfig.startTime || slot.startTime;
+              currentEndTime = customConfig.endTime || slot.endTime;
+              if (customConfig.title !== undefined && customConfig.title.trim() !== '') {
+                finalTitle = customConfig.title;
+              }
+              if (customConfig.category) {
+                finalCategory = customConfig.category;
+              }
             }
-            const curriculumItem = curriculumManagerList[liveSessionCounter];
-            finalTitle = curriculumItem.name;
-            
-            const ids = activeBatches.map(batch => {
-              const batchIds = blueprint.batchPhaseIds[batch];
-              const phase = blueprint.phases.find(p => p.id === curriculumItem.phaseId);
-              return batchIds?.[curriculumItem.phaseId] || phase?.courseId || curriculumItem.phaseId || "N/A";
-            });
-            courseValue = ids.join(', ');
-            
-            liveSessionCounter++;
+          } else if (slot.category.startsWith('qna-sessions')) {
+            const qnaConfig = getQnaDayConfig(slot, dayOfWeek);
+            currentStartTime = qnaConfig.startTime || slot.startTime;
+            currentEndTime = qnaConfig.endTime || slot.endTime;
+            finalTitle = qnaConfig.title || (qnaConfig.type === 'open-mic' ? 'Open Mic Q&A Session' : slot.title);
+          }
+
+          const [startH, startM] = currentStartTime.split(':').map(Number);
+          const [endH, endM] = currentEndTime.split(':').map(Number);
+          const startDateTime = set(date, { hours: startH, minutes: startM, seconds: 0 });
+          let endDateTime = set(date, { hours: endH, minutes: endM, seconds: 0 });
+
+          if (endDateTime <= startDateTime) {
+            endDateTime = addDays(endDateTime, 1);
+          }
+
+          let startStr = formatInTimeZone(startDateTime, IST_TIMEZONE, 'd MMMM yyyy hh:mm a') + ' IST';
+          let endStr = formatInTimeZone(endDateTime, IST_TIMEZONE, 'd MMMM yyyy hh:mm a') + ' IST';
+
+          let sessionLink = '';
+          if (dayOption === 'custom') {
+            const customConfig = slot.customDayConfigs?.[dayOfWeek];
+            sessionLink = (customConfig && customConfig.link) ? customConfig.link : slot.sessionLink;
           } else {
-            courseValue = activeCourses.join(', ');
+            sessionLink = slot.sessionLink;
           }
-        } else {
+
+          let courseValue = '';
+          const activeCourses = slot.course.filter(c => c.trim() !== '');
           if (slot.courseLogic === 'combined') {
             courseValue = activeCourses.join(', ');
           } else if (slot.courseLogic === 'sequential') {
@@ -1747,47 +1780,143 @@ export default function App() {
               const courseIdx = Math.floor((sessionIndex / totalSessions) * activeCourses.length);
               courseValue = activeCourses[Math.min(courseIdx, activeCourses.length - 1)];
             }
-          } else if (slot.courseLogic === 'hybrid') {
-            courseValue = getSynchronizedCourseIDs(slot.title, activeBatches, blueprint);
           }
-        }
 
-        let currentInstructors = slot.instructors;
-        if (dayOption === 'custom') {
-          const customConfig = slot.customDayConfigs?.[dayOfWeek];
-          if (customConfig && customConfig.instructors && customConfig.instructors.length > 0 && customConfig.instructors[0].trim() !== '') {
-            currentInstructors = customConfig.instructors;
+          let currentInstructors = slot.instructors;
+          if (dayOption === 'custom') {
+            const customConfig = slot.customDayConfigs?.[dayOfWeek];
+            if (customConfig && customConfig.instructors && customConfig.instructors.length > 0 && customConfig.instructors[0].trim() !== '') {
+              currentInstructors = customConfig.instructors;
+            }
+          } else if (finalCategory.startsWith('qna-sessions')) {
+            const qnaConfig = getQnaDayConfig(slot, dayOfWeek);
+            if (qnaConfig && qnaConfig.instructors && qnaConfig.instructors.length > 0 && qnaConfig.instructors[0].trim() !== '') {
+              currentInstructors = qnaConfig.instructors;
+            }
           }
-        } else if (finalCategory.startsWith('qna-sessions')) {
-          const qnaConfig = getQnaDayConfig(slot, dayOfWeek);
-          if (qnaConfig && qnaConfig.instructors && qnaConfig.instructors.length > 0 && qnaConfig.instructors[0].trim() !== '') {
-            currentInstructors = qnaConfig.instructors;
-          }
-        }
 
-        schedule.push({ 
-          title: finalTitle,
-          description: slot.description,
-          sessionLink: sessionLink,
-          sessionPlatform: slot.sessionPlatform,
-          category: finalCategory,
-          startTime: startStr,
-          endTime: endStr,
-          instructors: currentInstructors.filter(i => i.trim() !== '').join(', '),
-          course: courseValue,
-          batch: slot.batch.filter(b => b.trim() !== '').join(', '),
-          courseGroup: slot.courseGroup
+          schedule.push({ 
+            title: finalTitle,
+            description: slot.description,
+            sessionLink: sessionLink,
+            sessionPlatform: slot.sessionPlatform,
+            category: finalCategory,
+            startTime: startStr,
+            endTime: endStr,
+            instructors: currentInstructors.filter(i => i.trim() !== '').join(', '),
+            course: courseValue,
+            batch: slot.batch.filter(b => b.trim() !== '').join(', '),
+            courseGroup: slot.courseGroup,
+            _rawDate: startDateTime
+          } as any);
+          sessionIndex++;
         });
-        sessionIndex++;
       });
+    }
+
+    // 2. Generate Live Sessions from Curriculum (if enabled)
+    if (includeLiveSessions) {
+      const curriculumManagerList = blueprint.phases.flatMap(p => 
+        p.sessions.map(s => ({ name: s.title, phaseId: p.id, phase: p }))
+      );
+
+      let liveDayIndex = 0;
+      
+      for (const item of curriculumManagerList) {
+        let foundDay = false;
+        const phase = item.phase;
+        
+        let attempts = 0;
+        while (attempts < 365) {
+          attempts++;
+          if (liveDayIndex >= allDays.length) {
+            const lastDay = allDays[allDays.length - 1];
+            allDays.push(addDays(lastDay, 1));
+          }
+          const date = allDays[liveDayIndex];
+          const dayOfWeek = getDay(date);
+          
+          const requiresSpecificDays = phase.daysOfWeek && phase.daysOfWeek.length > 0;
+          const requiresLegacyDay = phase.dayOfWeek !== undefined && phase.dayOfWeek !== 'all';
+          
+          let isValidDay = true;
+          if (requiresSpecificDays && !phase.daysOfWeek!.includes(dayOfWeek)) {
+            isValidDay = false;
+          } else if (!requiresSpecificDays && requiresLegacyDay && phase.dayOfWeek !== dayOfWeek) {
+            isValidDay = false;
+          }
+          
+          if (isValidDay) {
+            foundDay = true;
+            
+            let currentStartTime = phase.dayTimes?.[dayOfWeek]?.startTime || phase.startTime || '10:00';
+            let currentEndTime = phase.dayTimes?.[dayOfWeek]?.endTime || phase.endTime || '12:00';
+            
+            const [startH, startM] = currentStartTime.split(':').map(Number);
+            const [endH, endM] = currentEndTime.split(':').map(Number);
+            
+            const startDateTime = set(date, { hours: startH, minutes: startM, seconds: 0 });
+            let endDateTime = set(date, { hours: endH, minutes: endM, seconds: 0 });
+            
+            if (endDateTime <= startDateTime) endDateTime = addDays(endDateTime, 1);
+            
+            const startStr = formatInTimeZone(startDateTime, IST_TIMEZONE, 'd MMMM yyyy hh:mm a') + ' IST';
+            const endStr = formatInTimeZone(endDateTime, IST_TIMEZONE, 'd MMMM yyyy hh:mm a') + ' IST';
+            
+            const activeBatches = blueprint.globalBatches || [];
+            let courseValue = '';
+            if (activeBatches.length > 0) {
+              const ids = activeBatches.map(batch => {
+                const batchIds = blueprint.batchPhaseIds?.[batch];
+                return batchIds?.[phase.id] || phase.courseId || phase.id || "N/A";
+              });
+              courseValue = ids.join(', ');
+            } else {
+              courseValue = phase.courseId || phase.name || '';
+            }
+            
+            schedule.push({
+              title: item.name,
+              description: phase.name || '',
+              sessionLink: dayOfWeek === 6 ? (blueprint.globalSaturdayLink || '') : dayOfWeek === 0 ? (blueprint.globalSundayLink || '') : '',
+              sessionPlatform: 'ZOOM',
+              category: 'live-sessions-aig',
+              startTime: startStr,
+              endTime: endStr,
+              instructors: (phase.instructors || []).join(', '),
+              course: courseValue,
+              batch: activeBatches.join(', '),
+              courseGroup: phase.name || '',
+              _rawDate: startDateTime
+            } as any);
+            
+            liveDayIndex++; // Consume one slot for this live session
+            break;
+          } else {
+            liveDayIndex++;
+          }
+        }
+        if (!foundDay) break;
+      }
+    }
+
+    // Sort combined schedule by date and time
+    schedule.sort((a: any, b: any) => a._rawDate.getTime() - b._rawDate.getTime());
+    
+    // Remove temporary sorting field
+    const finalSchedule = schedule.map((s: any) => {
+      const copy = { ...s };
+      delete copy._rawDate;
+      return copy as GeneratedRow;
     });
 
-    setGeneratedSchedule(schedule);
+    console.log("Final schedule generated:", finalSchedule.length);
+    setGeneratedSchedule(finalSchedule);
     setIsGenerated(true);
     setIsGenerating(false);
 
     const savedData: SavedSchedule = {
-      data: schedule,
+      data: finalSchedule,
       startDate,
       endDate,
       dayOption,
@@ -1799,7 +1928,6 @@ export default function App() {
     setHasSavedData(false);
     setLastGeneratedTime(savedData.timestamp);
   };
-
   const downloadCSV = () => {
     if (generatedSchedule.length === 0) return;
 
@@ -1818,17 +1946,17 @@ export default function App() {
     ];
     
     const rows = generatedSchedule.map(item => [
-      `"${item.title.replace(/"/g, '""')}"`,
-      `"${item.description.replace(/"/g, '""')}"`,
-      `"${item.sessionLink.replace(/"/g, '""')}"`,
-      `"${item.sessionPlatform.replace(/"/g, '""')}"`,
-      `"${item.category.replace(/"/g, '""')}"`,
-      `"${item.startTime}"`,
-      `"${item.endTime}"`,
-      `"${item.instructors.replace(/"/g, '""')}"`,
-      `"${item.course.replace(/"/g, '""')}"`,
-      `"${item.batch.replace(/"/g, '""')}"`,
-      `"${item.courseGroup.replace(/"/g, '""')}"`
+      `"${(item.title || '').replace(/"/g, '""')}"`,
+      `"${(item.description || '').replace(/"/g, '""')}"`,
+      `"${(item.sessionLink || '').replace(/"/g, '""')}"`,
+      `"${(item.sessionPlatform || '').replace(/"/g, '""')}"`,
+      `"${(item.category || '').replace(/"/g, '""')}"`,
+      `"${item.startTime || ''}"`,
+      `"${item.endTime || ''}"`,
+      `"${(item.instructors || '').replace(/"/g, '""')}"`,
+      `"${(item.course || '').replace(/"/g, '""')}"`,
+      `"${(item.batch || '').replace(/"/g, '""')}"`,
+      `"${(item.courseGroup || '').replace(/"/g, '""')}"`
     ].join(','));
 
     const csvContent = [headers.join(','), ...rows].join('\n');
@@ -2203,6 +2331,50 @@ export default function App() {
                         Add Phase
                       </button>
                     </div>
+                    
+                    {/* Global Phase Details (Batches & Links) */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 bg-white/[0.02] p-4 rounded-2xl border border-brand-border">
+                      <div className="space-y-2">
+                        <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
+                          <Users size={12} className="text-brand-accent-violet" />
+                          Global Batch IDs (For Live Sessions)
+                        </label>
+                        <input 
+                          type="text" 
+                          value={(blueprint.globalBatches || []).join(', ')}
+                          onChange={(e) => setBlueprint(prev => ({ ...prev, globalBatches: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))}
+                          placeholder="e.g. batch_id_1, batch_id_2"
+                          className="w-full bg-white/5 border border-brand-border rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
+                          <LinkIcon size={12} className="text-brand-accent-teal" />
+                          Saturday Session Link
+                        </label>
+                        <input 
+                          type="text" 
+                          value={blueprint.globalSaturdayLink || ''}
+                          onChange={(e) => setBlueprint(prev => ({ ...prev, globalSaturdayLink: e.target.value }))}
+                          placeholder="https://zoom.us/..."
+                          className="w-full bg-white/5 border border-brand-border rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-teal/20 focus:border-brand-accent-teal/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
+                          <LinkIcon size={12} className="text-brand-accent-teal" />
+                          Sunday Session Link
+                        </label>
+                        <input 
+                          type="text" 
+                          value={blueprint.globalSundayLink || ''}
+                          onChange={(e) => setBlueprint(prev => ({ ...prev, globalSundayLink: e.target.value }))}
+                          placeholder="https://zoom.us/..."
+                          className="w-full bg-white/5 border border-brand-border rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-teal/20 focus:border-brand-accent-teal/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                        />
+                      </div>
+                    </div>
+
                     <DndContext 
                       sensors={sensors}
                       collisionDetection={closestCenter}
@@ -2219,6 +2391,7 @@ export default function App() {
                               onAddSession={addSession}
                               onDeletePhase={deletePhase}
                               onRenamePhase={renamePhase}
+                              onUpdatePhase={updatePhase}
                             />
                           ))}
                         </div>
@@ -2262,7 +2435,7 @@ export default function App() {
                           }`}
                         >
                           <div className={`w-2 h-2 rounded-full ${selectedSlotId === slot.id ? 'bg-brand-accent-violet animate-pulse' : 'bg-white/20'}`} />
-                          Slot {index + 1}: {slot.category === 'live-sessions-aig' ? `Sat ${slot.startTime} / Sun ${slot.sundayStartTime || slot.startTime}` : slot.startTime}
+                          Slot {index + 1}: {slot.startTime}
                         </button>
                         {timeSlots.length > 1 && (
                           <button
@@ -2356,7 +2529,7 @@ export default function App() {
                                           <div className="space-y-1.5">
                                             <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Category</span>
                                             <div className="flex bg-white/5 border border-brand-border rounded-xl p-1 relative shadow-sm">
-                                              {(['live-sessions-aig', 'qna-sessions-aig', 'qna-sessions-bsiai', ...customLiveCategories.map(c => c.slug)] as string[]).map((c) => (
+                                              {(['qna-sessions-aig', 'qna-sessions-bsiai'] as string[]).map((c) => (
                                                 <button
                                                   key={c}
                                                   type="button"
@@ -2367,7 +2540,7 @@ export default function App() {
                                                       : 'text-slate-400 hover:text-slate-200'
                                                   }`}
                                                 >
-                                                  {c === 'qna-sessions-aig' ? 'Q&A' : c === 'qna-sessions-bsiai' ? 'BSIAI Q&A' : c === 'live-sessions-aig' ? 'LIVE' : customLiveCategories.find(cat => cat.slug === c)?.label || c}
+                                                  {c === 'qna-sessions-aig' ? 'Q&A' : c === 'qna-sessions-bsiai' ? 'BSIAI Q&A' : c}
                                                 </button>
                                               ))}
                                               <button type="button" onClick={() => setShowCategoryModal(true)} className="relative z-10 px-2 py-1.5 text-[9px] font-bold rounded-lg text-slate-400 hover:text-white transition-all flex items-center justify-center bg-white/5 ml-1">+ Add</button>
@@ -2393,7 +2566,7 @@ export default function App() {
                                           <div className="flex items-center justify-between">
                                             <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
                                               <Users size={10} />
-                                              {day.label} Instructors *
+                                              {day.label} Instructor IDs *
                                             </span>
                                             <button 
                                               type="button"
@@ -2401,7 +2574,7 @@ export default function App() {
                                               className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
                                             >
                                               <Plus size={10} />
-                                              Add Instructor
+                                              Add Instructor ID
                                             </button>
                                           </div>
                                           <div className="space-y-3">
@@ -2431,39 +2604,6 @@ export default function App() {
                                   );
                                 })
                               )}
-                            </>
-                          ) : slot.category === 'live-sessions-aig' ? (
-                            <>
-                              <div className="col-span-2 space-y-3">
-                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Saturday Time</span>
-                                <div className="grid grid-cols-2 gap-4">
-                                  <TimeInput12h 
-                                    label="Start Time"
-                                    value={slot.startTime}
-                                    onChange={(val) => updateTimeSlot(slot.id, 'startTime', val)}
-                                  />
-                                  <TimeInput12h 
-                                    label="End Time"
-                                    value={slot.endTime}
-                                    onChange={(val) => updateTimeSlot(slot.id, 'endTime', val)}
-                                  />
-                                </div>
-                              </div>
-                              <div className="col-span-2 space-y-3">
-                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Sunday Time</span>
-                                <div className="grid grid-cols-2 gap-4">
-                                  <TimeInput12h 
-                                    label="Start Time"
-                                    value={slot.sundayStartTime || slot.startTime}
-                                    onChange={(val) => updateTimeSlot(slot.id, 'sundayStartTime', val)}
-                                  />
-                                  <TimeInput12h 
-                                    label="End Time"
-                                    value={slot.sundayEndTime || slot.endTime}
-                                    onChange={(val) => updateTimeSlot(slot.id, 'sundayEndTime', val)}
-                                  />
-                                </div>
-                              </div>
                             </>
                           ) : (
                             <>
@@ -2525,7 +2665,7 @@ export default function App() {
                             <div className="space-y-1.5">
                               <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Category</span>
                               <div className="flex bg-white/5 border border-brand-border rounded-xl p-1 relative shadow-sm">
-                                {(['qna-sessions-aig', 'qna-sessions-bsiai', 'live-sessions-aig', ...customLiveCategories.map(c => c.slug)] as string[]).map((c) => (
+                                {(['qna-sessions-aig', 'qna-sessions-bsiai'] as string[]).map((c) => (
                                   <button
                                     key={c}
                                     onClick={() => updateTimeSlot(slot.id, 'category', c)}
@@ -2542,7 +2682,7 @@ export default function App() {
                                         transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                       />
                                     )}
-                                    {c === 'qna-sessions-aig' ? 'Q&A' : c === 'qna-sessions-bsiai' ? 'BSIAI Q&A' : c === 'live-sessions-aig' ? 'LIVE' : customLiveCategories.find(cat => cat.slug === c)?.label || c}
+                                    {c === 'qna-sessions-aig' ? 'Q&A' : c === 'qna-sessions-bsiai' ? 'BSIAI Q&A' : c}
                                   </button>
                                 ))}
                                 <button type="button" onClick={() => setShowCategoryModal(true)} className="relative z-10 px-2 py-2 text-[9px] font-bold rounded-lg text-slate-400 hover:text-white transition-all flex items-center justify-center bg-white/5 ml-1">+ Add</button>
@@ -2615,39 +2755,7 @@ export default function App() {
 
                           {dayOption !== 'custom' && (
                             <div className="col-span-2 space-y-4">
-                              {slot.category === 'live-sessions-aig' ? (
-                                /* Standard LIVE Instructors */
-                                <div className="space-y-3">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
-                                      <Users size={10} />
-                                      Instructors *
-                                    </span>
-                                    <button 
-                                      type="button"
-                                      onClick={() => addInstructor(slot.id)}
-                                      className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
-                                    >
-                                      <Plus size={10} />
-                                      Add Instructor
-                                    </button>
-                                  </div>
-                                  <div className="space-y-3">
-                                    {slot.instructors.map((inst, idx) => (
-                                      <SearchableInput 
-                                        key={`mwf-${idx}`}
-                                        value={inst}
-                                        onChange={(val) => updateInstructor(slot.id, idx, val)}
-                                        recentOptions={recentInstructors}
-                                        isMandatory={idx === 0}
-                                        showRemove={idx > 0}
-                                        onRemove={() => removeInstructor(slot.id, idx)}
-                                        placeholder="Instructor ID"
-                                      />
-                                    ))}
-                                  </div>
-                                </div>
-                              ) : (
+                              {(
                                 /* Q&A Days Configuration */
                                 <div className="space-y-4">
                                   <div className="border-b border-white/[0.05] pb-2">
@@ -2750,7 +2858,7 @@ export default function App() {
                                             <div className="flex items-center justify-between">
                                               <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
                                                 <Users size={10} />
-                                                Instructors *
+                                                Instructor IDs *
                                               </span>
                                               <button 
                                                 type="button"
@@ -2758,7 +2866,7 @@ export default function App() {
                                                 className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
                                               >
                                                 <Plus size={10} />
-                                                Add Instructor
+                                                Add Instructor ID
                                               </button>
                                             </div>
                                             <div className="space-y-3">
@@ -2789,14 +2897,14 @@ export default function App() {
                             <div className="flex items-center justify-between">
                               <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
                                 <Users size={10} />
-                                Batch ID/Name
+                                Batch IDs
                               </span>
                               <button 
                                 onClick={() => addBatch(slot.id)}
                                 className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
                               >
                                 <Plus size={10} />
-                                Add Batch
+                                Add Batch ID
                               </button>
                             </div>
                             <div className="space-y-3">
@@ -2866,6 +2974,26 @@ export default function App() {
 
               {/* Action Button */}
               <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-white/[0.03] p-4 rounded-2xl border border-brand-border">
+                  <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-slate-200">
+                    <input 
+                      type="checkbox" 
+                      checked={includeLiveSessions} 
+                      onChange={(e) => setIncludeLiveSessions(e.target.checked)}
+                      className="w-4 h-4 rounded border-brand-border text-brand-accent-violet focus:ring-brand-accent-violet/20 bg-white/5"
+                    />
+                    <span>Live Sessions (Curriculum Phases)</span>
+                  </label>
+                  <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-slate-200">
+                    <input 
+                      type="checkbox" 
+                      checked={includeQnaSessions} 
+                      onChange={(e) => setIncludeQnaSessions(e.target.checked)}
+                      className="w-4 h-4 rounded border-brand-border text-brand-accent-violet focus:ring-brand-accent-violet/20 bg-white/5"
+                    />
+                    <span>Q&A Sessions (Time Slots)</span>
+                  </label>
+                </div>
                 <div className="text-center">
                   <p className="text-xs text-slate-400 font-medium">
                     This will generate <span className={`font-bold ${sessionCount === 0 ? 'text-red-500' : 'text-slate-500'}`}>{sessionCount}</span> total sessions based on your current settings.
@@ -3002,7 +3130,40 @@ export default function App() {
                   </div>
                 )}
               </div>
-
+              {isGenerated && generatedSchedule.length > 0 && (
+                <div className="flex items-center gap-2 mb-4 bg-white/[0.03] p-1.5 rounded-2xl border border-brand-border w-fit">
+                  <button
+                    onClick={() => setScheduleCategoryFilter('all')}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      scheduleCategoryFilter === 'all'
+                        ? 'bg-brand-accent-violet text-white shadow-md'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    All ({generatedSchedule.length})
+                  </button>
+                  <button
+                    onClick={() => setScheduleCategoryFilter('live')}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      scheduleCategoryFilter === 'live'
+                        ? 'bg-brand-accent-violet text-white shadow-md'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    Live Sessions ({generatedSchedule.filter(i => i.category === 'live-sessions-aig' || customLiveCategories.some(c => c.slug === i.category)).length})
+                  </button>
+                  <button
+                    onClick={() => setScheduleCategoryFilter('qna')}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                      scheduleCategoryFilter === 'qna'
+                        ? 'bg-brand-accent-violet text-white shadow-md'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    Q&A Sessions ({generatedSchedule.filter(i => i.category.startsWith('qna-sessions') || (!i.category.startsWith('live') && i.category !== 'live-sessions-aig')).length})
+                  </button>
+                </div>
+              )}
               <div className="flex-1 overflow-hidden border border-brand-border rounded-3xl bg-white/[0.03]">
                 {!isGenerated ? (
                   <div className="h-full flex flex-col items-center justify-center text-center p-12 space-y-6">
@@ -3024,34 +3185,64 @@ export default function App() {
                       <p className="text-sm font-medium text-slate-400 leading-relaxed">Try expanding your date range or changing your day selection filters.</p>
                     </div>
                   </div>
-                ) : (
-                  <div className="h-full overflow-y-auto custom-scrollbar">
-                    <table className="w-full text-left border-collapse">
-                      <thead className="sticky top-0 bg-black/40 border-b border-brand-border z-10">
-                        <tr>
-                          <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">#</th>
-                          <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Title</th>
-                          <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Course</th>
-                          <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Batch</th>
-                          <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Start Time (IST)</th>
-                          <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">End Time (IST)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-50">
-                        {generatedSchedule.map((item, index) => (
-                          <tr key={index} className="hover:bg-white/5 transition-colors group">
-                            <td className="px-6 py-5 text-[11px] font-mono text-slate-500">{index + 1}</td>
-                            <td className="px-6 py-5 text-sm font-semibold text-slate-200 truncate max-w-[140px]" title={item.title}>{item.title || '-'}</td>
-                            <td className="px-6 py-5 text-sm font-medium text-slate-400">{item.course}</td>
-                            <td className="px-6 py-5 text-sm font-medium text-slate-400">{item.batch}</td>
-                            <td className="px-6 py-5 text-sm font-medium text-slate-500 whitespace-nowrap">{item.startTime}</td>
-                            <td className="px-6 py-5 text-sm font-medium text-slate-500 whitespace-nowrap">{item.endTime}</td>
+                ) : (() => {
+                  const filteredList = generatedSchedule.filter(item => {
+                    if (scheduleCategoryFilter === 'all') return true;
+                    if (scheduleCategoryFilter === 'live') {
+                      return item.category === 'live-sessions-aig' || customLiveCategories.some(c => c.slug === item.category);
+                    }
+                    if (scheduleCategoryFilter === 'qna') {
+                      return item.category.startsWith('qna-sessions') || (!item.category.startsWith('live') && item.category !== 'live-sessions-aig');
+                    }
+                    return true;
+                  });
+                  return filteredList.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-12 space-y-6">
+                      <div className="space-y-2 max-w-xs">
+                        <p className="text-lg font-bold text-slate-200">No sessions found in this category</p>
+                        <p className="text-sm font-medium text-slate-400 leading-relaxed">Try selecting a different category filter.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-full overflow-y-auto custom-scrollbar">
+                      <table className="w-full text-left border-collapse">
+                        <thead className="sticky top-0 bg-black/40 border-b border-brand-border z-10">
+                          <tr>
+                            <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">#</th>
+                            <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Title</th>
+                            <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Category</th>
+                            <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Course</th>
+                            <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Batch</th>
+                            <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Start Time (IST)</th>
+                            <th className="px-6 py-5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">End Time (IST)</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                          {filteredList.map((item, index) => {
+                            const isLive = item.category === 'live-sessions-aig' || customLiveCategories.some(c => c.slug === item.category);
+                            return (
+                              <tr key={index} className="hover:bg-white/5 transition-colors group">
+                                <td className="px-6 py-5 text-[11px] font-mono text-slate-500">{index + 1}</td>
+                                <td className="px-6 py-5 text-sm font-semibold text-slate-200 truncate max-w-[140px]" title={item.title}>{item.title || '-'}</td>
+                                <td className="px-6 py-5">
+                                  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                                    isLive ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                                  }`}>
+                                    {isLive ? 'Live Session' : 'Q&A'}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-5 text-sm font-medium text-slate-400">{item.course}</td>
+                                <td className="px-6 py-5 text-sm font-medium text-slate-400">{item.batch}</td>
+                                <td className="px-6 py-5 text-sm font-medium text-slate-500 whitespace-nowrap">{item.startTime}</td>
+                                <td className="px-6 py-5 text-sm font-medium text-slate-500 whitespace-nowrap">{item.endTime}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })()}
               </div>
             </section>
           </div>

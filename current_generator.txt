@@ -1,0 +1,301 @@
+      setIsGenerating(false);
+      return;
+    }
+
+    // Validation for mandatory fields
+    const invalidSlot = timeSlots.find(slot => {
+      const isQnA = slot.category.startsWith('qna-sessions');
+      const isCustom = dayOption === 'custom';
+      
+      // if (!slot.batch || !slot.batch[0] || slot.batch[0].trim() === '') return true;
+
+      if (isCustom) {
+        if (customDays.length === 0) return true;
+        const allDaysValid = customDays.every(dayVal => {
+          const cfg = getCustomDayConfig(slot, dayVal);
+          if (!cfg.link || cfg.link.trim() === '') return false;
+          if (!cfg.instructors || cfg.instructors.length === 0 || !cfg.instructors[0] || cfg.instructors[0].trim() === '') return false;
+          return true;
+        });
+        return !allDaysValid;
+      }
+
+      if (isQnA) {
+        if (!slot.sessionLink || slot.sessionLink.trim() === '') return true;
+        
+        const activeDays = dayOption === 'weekdays' ? [1, 2, 3, 4, 5] : [6, 0];
+        const allDaysHaveInstructors = activeDays.every(dayVal => {
+          const cfg = getQnaDayConfig(slot, dayVal);
+          return cfg && cfg.instructors && cfg.instructors[0] && cfg.instructors[0].trim() !== '';
+        });
+        return !allDaysHaveInstructors;
+      }
+
+      // Live Sessions (non-custom)
+      if (dayOption === 'weekends') {
+        if (!slot.saturdayLink || slot.saturdayLink.trim() === '') return true;
+        if (!slot.sundayLink || slot.sundayLink.trim() === '') return true;
+      } else {
+        if (!slot.sessionLink || slot.sessionLink.trim() === '') return true;
+      }
+
+      return !slot.instructors || slot.instructors.length === 0 || !slot.instructors[0] || slot.instructors[0].trim() === '';
+    });
+
+    if (invalidSlot) {
+      alert('Please fill in all mandatory fields (*) for all time slots (Session links, Instructor 1, and Batch).');
+      setIsGenerating(false);
+      return;
+    }
+
+    // Save used instructors, batches and courses to memory
+    const allUsedInstructors = timeSlots.flatMap(s => s.instructors);
+    saveToRecentInstructors(allUsedInstructors);
+    
+    const allUsedBatches = timeSlots.flatMap(s => s.batch);
+    saveToRecentBatches(allUsedBatches);
+
+    const allUsedCourses = timeSlots.flatMap(s => s.course);
+    saveToRecentCourses(allUsedCourses);
+
+    const allDays = eachDayOfInterval({ start, end });
+    const filteredDays = allDays.filter(date => {
+      if (dayOption === 'weekdays') return !isWeekend(date);
+      if (dayOption === 'weekends') return isWeekend(date);
+      return customDays.includes(getDay(date));
+    });
+
+    const curriculumManagerList = blueprint.phases.flatMap(p => 
+      p.sessions.map(s => ({ name: s.title, phaseId: p.id }))
+    );
+    let liveSessionCounter = 0;
+
+    const schedule: GeneratedRow[] = [];
+    const totalSessions = filteredDays.length * timeSlots.length;
+    let sessionIndex = 0;
+
+    filteredDays.forEach(date => {
+      const dayOfWeek = getDay(date); // 0 = Sunday, 6 = Saturday
+      
+      timeSlots.forEach(slot => {
+        let currentStartTime = slot.startTime;
+        let currentEndTime = slot.endTime;
+        let finalTitle = slot.title;
+        let finalCategory = slot.category;
+        
+        if (dayOption === 'custom') {
+          const customConfig = slot.customDayConfigs?.[dayOfWeek];
+          if (customConfig) {
+            currentStartTime = customConfig.startTime || slot.startTime;
+            currentEndTime = customConfig.endTime || slot.endTime;
+            if (customConfig.title !== undefined && customConfig.title.trim() !== '') {
+              finalTitle = customConfig.title;
+            }
+            if (customConfig.category) {
+              finalCategory = customConfig.category;
+            }
+          }
+        } else if (slot.category.startsWith('qna-sessions')) {
+          const qnaConfig = getQnaDayConfig(slot, dayOfWeek);
+          currentStartTime = qnaConfig.startTime || slot.startTime;
+          currentEndTime = qnaConfig.endTime || slot.endTime;
+          finalTitle = qnaConfig.title || (qnaConfig.type === 'open-mic' ? 'Open Mic Q&A Session' : slot.title);
+        } else {
+          if (slot.category === 'live-sessions-aig' && dayOfWeek === 0) {
+            currentStartTime = slot.sundayStartTime || slot.startTime;
+            currentEndTime = slot.sundayEndTime || slot.endTime;
+          }
+        }
+
+        const [startH, startM] = currentStartTime.split(':').map(Number);
+        const [endH, endM] = currentEndTime.split(':').map(Number);
+
+        const startDateTime = set(date, { hours: startH, minutes: startM, seconds: 0 });
+        let endDateTime = set(date, { hours: endH, minutes: endM, seconds: 0 });
+
+        // Date Rollover Detection: If EndTime is less than or equal to StartTime, it's the next day
+        if (endDateTime <= startDateTime) {
+          endDateTime = addDays(endDateTime, 1);
+        }
+
+        // Format for IST display: [Day] [Month] [Year] [Time] IST
+        let startStr = formatInTimeZone(startDateTime, IST_TIMEZONE, 'd MMMM yyyy hh:mm a') + ' IST';
+        let endStr = formatInTimeZone(endDateTime, IST_TIMEZONE, 'd MMMM yyyy hh:mm a') + ' IST';
+
+        // Conditional Session Link
+        let sessionLink = '';
+        if (dayOption === 'custom') {
+          const customConfig = slot.customDayConfigs?.[dayOfWeek];
+          sessionLink = (customConfig && customConfig.link) ? customConfig.link : slot.sessionLink;
+        } else if (slot.category.startsWith('qna-sessions')) {
+          sessionLink = slot.sessionLink;
+        } else if (dayOption === 'weekends') {
+          // Sunday (0) uses sundayLink, others use saturdayLink
+          sessionLink = dayOfWeek === 0 ? slot.sundayLink : slot.saturdayLink;
+        } else {
+          sessionLink = slot.sessionLink;
+        }
+
+        // Course Logic
+        let courseValue = '';
+        const activeCourses = slot.course.filter(c => c.trim() !== '');
+        const activeBatches = slot.batch.filter(b => b.trim() !== '');
+        
+        const isLiveCategory = finalCategory === 'live-sessions-aig' || customLiveCategories.some(c => c.slug === finalCategory);
+        if (isLiveCategory) {
+          if (curriculumManagerList.length > 0) {
+            if (liveSessionCounter >= curriculumManagerList.length) {
+              // Curriculum exhausted, skip generating further sessions of this type
+              return;
+            }
+            const curriculumItem = curriculumManagerList[liveSessionCounter];
+            const phase = blueprint.phases.find(p => p.id === curriculumItem.phaseId);
+
+            if (phase) {
+              const requiresSpecificDays = phase.daysOfWeek && phase.daysOfWeek.length > 0;
+              const requiresLegacyDay = phase.dayOfWeek !== undefined && phase.dayOfWeek !== 'all';
+              
+              if (requiresSpecificDays && !phase.daysOfWeek!.includes(dayOfWeek)) {
+                return;
+              } else if (!requiresSpecificDays && requiresLegacyDay && phase.dayOfWeek !== dayOfWeek) {
+                return;
+              }
+            }
+
+            if (phase) {
+              let changed = false;
+              const daySpecificTime = phase.dayTimes?.[dayOfWeek];
+              
+              if (daySpecificTime?.startTime || phase.startTime) { 
+                currentStartTime = daySpecificTime?.startTime || phase.startTime || currentStartTime; 
+                changed = true; 
+              }
+              if (daySpecificTime?.endTime || phase.endTime) { 
+                currentEndTime = daySpecificTime?.endTime || phase.endTime || currentEndTime; 
+                changed = true; 
+              }
+              
+              if (changed) {
+                const [sH, sM] = currentStartTime.split(':').map(Number);
+                const [eH, eM] = currentEndTime.split(':').map(Number);
+                const sDate = set(date, { hours: sH, minutes: sM, seconds: 0 });
+                let eDate = set(date, { hours: eH, minutes: eM, seconds: 0 });
+                if (eDate <= sDate) eDate = addDays(eDate, 1);
+                
+                startStr = formatInTimeZone(sDate, IST_TIMEZONE, 'd MMMM yyyy hh:mm a') + ' IST';
+                endStr = formatInTimeZone(eDate, IST_TIMEZONE, 'd MMMM yyyy hh:mm a') + ' IST';
+              }
+            }
+
+            finalTitle = curriculumItem.name;
+            
+            const ids = activeBatches.map(batch => {
+              const batchIds = blueprint.batchPhaseIds[batch];
+              return batchIds?.[curriculumItem.phaseId] || phase?.courseId || curriculumItem.phaseId || "N/A";
+            });
+            courseValue = ids.join(', ');
+            
+            liveSessionCounter++;
+          } else {
+            courseValue = activeCourses.join(', ');
+          }
+        } else {
+          if (slot.courseLogic === 'combined') {
+            courseValue = activeCourses.join(', ');
+          } else if (slot.courseLogic === 'sequential') {
+            if (activeCourses.length > 0) {
+              const courseIdx = Math.floor((sessionIndex / totalSessions) * activeCourses.length);
+              courseValue = activeCourses[Math.min(courseIdx, activeCourses.length - 1)];
+            }
+          } else if (slot.courseLogic === 'hybrid') {
+            courseValue = getSynchronizedCourseIDs(finalTitle, activeBatches, blueprint);
+          }
+        }
+
+        let currentInstructors = slot.instructors;
+        if (dayOption === 'custom') {
+          const customConfig = slot.customDayConfigs?.[dayOfWeek];
+          if (customConfig && customConfig.instructors && customConfig.instructors.length > 0 && customConfig.instructors[0].trim() !== '') {
+            currentInstructors = customConfig.instructors;
+          }
+        } else if (finalCategory.startsWith('qna-sessions')) {
+          const qnaConfig = getQnaDayConfig(slot, dayOfWeek);
+          if (qnaConfig && qnaConfig.instructors && qnaConfig.instructors.length > 0 && qnaConfig.instructors[0].trim() !== '') {
+            currentInstructors = qnaConfig.instructors;
+          }
+        }
+
+        schedule.push({ 
+          title: finalTitle,
+          description: slot.description,
+          sessionLink: sessionLink,
+          sessionPlatform: slot.sessionPlatform,
+          category: finalCategory,
+          startTime: startStr,
+          endTime: endStr,
+          instructors: currentInstructors.filter(i => i.trim() !== '').join(', '),
+          course: courseValue,
+          batch: slot.batch.filter(b => b.trim() !== '').join(', '),
+          courseGroup: slot.courseGroup
+        });
+        sessionIndex++;
+      });
+    });
+
+    setGeneratedSchedule(schedule);
+    setIsGenerated(true);
+    setIsGenerating(false);
+
+    const savedData: SavedSchedule = {
+      data: schedule,
+      startDate,
+      endDate,
+      dayOption,
+      customDays,
+      timeSlots,
+      timestamp: format(new Date(), 'MMMM d, hh:mm a')
+    };
+    localStorage.setItem('saved_schedule_data', JSON.stringify(savedData));
+    setHasSavedData(false);
+    setLastGeneratedTime(savedData.timestamp);
+  };
+
+  const downloadCSV = () => {
+    if (generatedSchedule.length === 0) return;
+
+    const headers = [
+      'Title', 
+      'Description', 
+      'SessionLink', 
+      'SessionPlatform', 
+      'Category', 
+      'StartTime', 
+      'EndTime', 
+      'Instructors', 
+      'Course',
+      'Batch', 
+      'CourseGroup'
+    ];
+    
+    const rows = generatedSchedule.map(item => [
+      `"${item.title.replace(/"/g, '""')}"`,
+      `"${item.description.replace(/"/g, '""')}"`,
+      `"${item.sessionLink.replace(/"/g, '""')}"`,
+      `"${item.sessionPlatform.replace(/"/g, '""')}"`,
+      `"${item.category.replace(/"/g, '""')}"`,
+      `"${item.startTime}"`,
+      `"${item.endTime}"`,
+      `"${item.instructors.replace(/"/g, '""')}"`,
+      `"${item.course.replace(/"/g, '""')}"`,
+      `"${item.batch.replace(/"/g, '""')}"`,
+      `"${item.courseGroup.replace(/"/g, '""')}"`
+    ].join(','));
+
+    const csvContent = [headers.join(','), ...rows].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `session_schedule_${startDate}_to_${endDate}.csv`);
+    link.style.visibility = 'hidden';

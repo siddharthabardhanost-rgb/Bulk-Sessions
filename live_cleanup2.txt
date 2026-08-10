@@ -1,0 +1,101 @@
+                                        value={slot.sundayLink}
+                                        onChange={(e) => updateTimeSlot(slot.id, 'sundayLink', e.target.value)}
+                                        placeholder="https://..."
+                                        className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                                      />
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
+                          )}
+
+                          {dayOption !== 'custom' && (
+                            <div className="col-span-2 space-y-4">
+                              {slot.category === 'live-sessions-aig' ? (
+                                /* Standard LIVE Instructors */
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
+                                      <Users size={10} />
+                                      Instructors *
+                                    </span>
+                                    <button 
+                                      type="button"
+                                      onClick={() => addInstructor(slot.id)}
+                                      className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
+                                    >
+                                      <Plus size={10} />
+                                      Add Instructor
+                                    </button>
+                                  </div>
+                                  <div className="space-y-3">
+                                    {slot.instructors.map((inst, idx) => (
+                                      <SearchableInput 
+                                        key={`mwf-${idx}`}
+                                        value={inst}
+                                        onChange={(val) => updateInstructor(slot.id, idx, val)}
+                                        recentOptions={recentInstructors}
+                                        isMandatory={idx === 0}
+                                        showRemove={idx > 0}
+                                        onRemove={() => removeInstructor(slot.id, idx)}
+                                        placeholder="Instructor ID"
+                                      />
+                                    ))}
+                                  </div>
+                                </div>
+                              ) : (
+                                /* Q&A Days Configuration */
+                                <div className="space-y-4">
+                                  <div className="border-b border-white/[0.05] pb-2">
+                                    <h4 className="text-xs font-bold text-slate-200 tracking-wide uppercase flex items-center gap-1.5">
+                                      <CalendarDays size={12} className="text-brand-accent-teal" />
+                                      Q&A Days Configuration
+                                    </h4>
+                                    <p className="text-[10px] text-slate-500 mt-1">
+                                      Select which days have Normal Q&A vs Open Mic Q&A, and configure their specific instructors, titles, and times.
+                                    </p>
+                                  </div>
+
+                                  <div className="space-y-4 max-h-[500px] overflow-y-auto pr-1">
+                                    {activeDaysList.map((day) => {
+                                      const qnaConfig = getQnaDayConfig(slot, day.value);
+                                      const isOpenMic = qnaConfig.type === 'open-mic';
+
+                                      return (
+                                        <div 
+                                          key={`qna-day-${day.value}`}
+                                          className={`p-4 rounded-2xl border transition-all duration-300 ${
+                                            isOpenMic 
+                                              ? 'bg-brand-accent-teal/10 border-brand-accent-teal/20' 
+                                              : 'bg-white/[0.02] border-brand-border'
+                                          }`}
+                                        >
+                                          {/* Day Name & Toggle */}
+                                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                                            <span className={`text-xs font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                                              isOpenMic ? 'text-brand-accent-teal' : 'text-slate-300'
+                                            }`}>
+                                              <Clock size={12} />
+                                              {day.label}
+                                            </span>
+
+                                            <div className="flex bg-white/5 border border-brand-border rounded-xl p-1 relative w-full sm:w-64 shadow-sm">
+                                              {(['normal', 'open-mic'] as const).map((t) => {
+                                                const isSelected = qnaConfig.type === t;
+                                                return (
+                                                  <button
+                                                    key={t}
+                                                    type="button"
+                                                    onClick={() => updateQnaDayConfig(slot.id, day.value, 'type', t)}
+                                                    className={`relative z-10 flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all duration-300 ${
+                                                      isSelected 
+                                                        ? 'text-white' 
+                                                        : 'text-slate-400 hover:text-slate-500'
+                                                    }`}
+                                                  >
+                                                    {isSelected && (
+                                                      <motion.div 
+                                                        layoutId={`qnaTypeBg-${slot.id}-${day.value}`}
+                                                        className={`absolute inset-0 rounded-lg -z-10 shadow-md ${
+                                                          isOpenMic ? 'bg-brand-accent-teal' : 'bg-brand-accent-violet'

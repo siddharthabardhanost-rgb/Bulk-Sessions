@@ -9,14 +9,28 @@ export interface CurriculumPhase {
   name: string;
   sessions: CurriculumSession[];
   courseId?: string;
+  startTime?: string;
+  endTime?: string;
+  dayOfWeek?: number | 'all';
+  daysOfWeek?: number[];
+  dayTimes?: Record<number, { startTime: string; endTime: string }>;
+  instructors?: string[];
+  batches?: string[];
+  sessionLink?: string;
 }
 
 export interface CurriculumBlueprint {
   phases: CurriculumPhase[];
   batchPhaseIds: Record<string, Record<string, string>>; // Batch -> PhaseID -> CourseID
+  globalBatches?: string[];
+  globalSaturdayLink?: string;
+  globalSundayLink?: string;
 }
 
 export const DEFAULT_CURRICULUM_BLUEPRINT: CurriculumBlueprint = {
+  globalBatches: [],
+  globalSaturdayLink: '',
+  globalSundayLink: '',
   phases: [
     {
       id: 'p1.1',
