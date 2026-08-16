@@ -1308,6 +1308,10 @@ export default function App() {
     setGeneratedSchedule([]);
     setIsGenerated(false);
     setShowClearConfirm(false);
+    setIncludeLiveSessions(true);
+    setIncludeQnaSessions(false);
+    setScheduleCategoryFilter('all');
+    setSelectedSlotId(null);
     localStorage.removeItem('saved_schedule_data');
     
     // Clear recent memory
@@ -1318,15 +1322,12 @@ export default function App() {
     localStorage.removeItem('recentBatches');
     localStorage.removeItem('recentCourses');
     
-    // Clear blueprint batch mappings
-    setBlueprint(prev => {
-      const newBlueprint = {
-        ...prev,
-        batchPhaseIds: {}
-      };
-      localStorage.setItem('curriculum_blueprint', JSON.stringify(newBlueprint));
-      return newBlueprint;
-    });
+    // Clear blueprint and custom categories
+    setBlueprint(DEFAULT_CURRICULUM_BLUEPRINT);
+    localStorage.removeItem('curriculum_blueprint');
+
+    setCustomLiveCategories([]);
+    localStorage.removeItem('custom_live_categories');
     
     setHasSavedData(false);
     setLastGeneratedTime(null);
@@ -1875,6 +1876,10 @@ export default function App() {
               courseValue = phase.courseId || phase.name || '';
             }
             
+            const globalInsts = blueprint.globalInstructors || [];
+            const phaseInsts = phase.instructors || [];
+            const effectiveInsts = globalInsts.length > 0 ? globalInsts : phaseInsts;
+
             schedule.push({
               title: item.name,
               description: phase.name || '',
@@ -1883,7 +1888,7 @@ export default function App() {
               category: 'live-sessions-aig',
               startTime: startStr,
               endTime: endStr,
-              instructors: (phase.instructors || []).join(', '),
+              instructors: effectiveInsts.join(', '),
               course: courseValue,
               batch: activeBatches.join(', '),
               courseGroup: phase.name || '',
@@ -2332,8 +2337,8 @@ export default function App() {
                       </button>
                     </div>
                     
-                    {/* Global Phase Details (Batches & Links) */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 bg-white/[0.02] p-4 rounded-2xl border border-brand-border">
+                    {/* Global Phase Details (Batches, Links & Instructors) */}
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 bg-white/[0.02] p-4 rounded-2xl border border-brand-border">
                       <div className="space-y-2">
                         <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
                           <Users size={12} className="text-brand-accent-violet" />
@@ -2371,6 +2376,19 @@ export default function App() {
                           onChange={(e) => setBlueprint(prev => ({ ...prev, globalSundayLink: e.target.value }))}
                           placeholder="https://zoom.us/..."
                           className="w-full bg-white/5 border border-brand-border rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-teal/20 focus:border-brand-accent-teal/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
+                          <Users size={12} className="text-brand-accent-violet" />
+                          Instructor ID (Global)
+                        </label>
+                        <input 
+                          type="text" 
+                          value={(blueprint.globalInstructors || []).join(', ')}
+                          onChange={(e) => setBlueprint(prev => ({ ...prev, globalInstructors: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))}
+                          placeholder="e.g. instructor_1"
+                          className="w-full bg-white/5 border border-brand-border rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
                         />
                       </div>
                     </div>
@@ -2562,42 +2580,18 @@ export default function App() {
                                         </div>
 
                                         {/* Custom day Instructors */}
-                                        <div className="space-y-3 pt-3 border-t border-white/[0.05]">
-                                          <div className="flex items-center justify-between">
-                                            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
-                                              <Users size={10} />
-                                              {day.label} Instructor IDs *
-                                            </span>
-                                            <button 
-                                              type="button"
-                                              onClick={() => updateCustomDayConfig(slot.id, day.value, 'instructors', [...(dayConfig.instructors || []), ''])}
-                                              className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
-                                            >
-                                              <Plus size={10} />
-                                              Add Instructor ID
-                                            </button>
-                                          </div>
-                                          <div className="space-y-3">
-                                            {(dayConfig.instructors || ['']).map((inst, idx) => (
-                                              <SearchableInput 
-                                                key={`custom-inst-${day.value}-${idx}`}
-                                                value={inst}
-                                                onChange={(val) => {
-                                                  const newArr = [...(dayConfig.instructors || [''])];
-                                                  newArr[idx] = val;
-                                                  updateCustomDayConfig(slot.id, day.value, 'instructors', newArr);
-                                                }}
-                                                recentOptions={recentInstructors}
-                                                isMandatory={idx === 0}
-                                                showRemove={idx > 0}
-                                                onRemove={() => {
-                                                  const newArr = (dayConfig.instructors || ['']).filter((_, i) => i !== idx);
-                                                  updateCustomDayConfig(slot.id, day.value, 'instructors', newArr);
-                                                }}
-                                                placeholder={`${day.label} Instructor ID`}
-                                              />
-                                            ))}
-                                          </div>
+                                        <div className="space-y-2 pt-3 border-t border-white/[0.05]">
+                                          <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
+                                            <Users size={10} />
+                                            {day.label} Instructor IDs *
+                                          </span>
+                                          <input 
+                                            type="text" 
+                                            value={(dayConfig.instructors || []).join(', ')}
+                                            onChange={(e) => updateCustomDayConfig(slot.id, day.value, 'instructors', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                                            placeholder="e.g. instructor_1, instructor_2"
+                                            className="w-full bg-white/5 border border-brand-border rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                                          />
                                         </div>
                                       </div>
                                     </div>
@@ -2854,35 +2848,18 @@ export default function App() {
                                           </div>
 
                                           {/* Instructor Configuration */}
-                                          <div className="space-y-3 pt-3 border-t border-white/[0.05]">
-                                            <div className="flex items-center justify-between">
-                                              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
-                                                <Users size={10} />
-                                                Instructor IDs *
-                                              </span>
-                                              <button 
-                                                type="button"
-                                                onClick={() => addQnaInstructor(slot.id, day.value)}
-                                                className="flex items-center gap-1 text-[10px] font-bold text-brand-accent-violet hover:text-brand-accent-teal transition-colors"
-                                              >
-                                                <Plus size={10} />
-                                                Add Instructor ID
-                                              </button>
-                                            </div>
-                                            <div className="space-y-3">
-                                              {qnaConfig.instructors.map((inst, idx) => (
-                                                <SearchableInput 
-                                                  key={`qna-inst-${day.value}-${idx}`}
-                                                  value={inst}
-                                                  onChange={(val) => updateQnaInstructor(slot.id, day.value, idx, val)}
-                                                  recentOptions={recentInstructors}
-                                                  isMandatory={idx === 0}
-                                                  showRemove={idx > 0}
-                                                  onRemove={() => removeQnaInstructor(slot.id, day.value, idx)}
-                                                  placeholder="Instructor ID"
-                                                />
-                                              ))}
-                                            </div>
+                                          <div className="space-y-2 pt-3 border-t border-white/[0.05]">
+                                            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
+                                              <Users size={10} />
+                                              Instructor IDs *
+                                            </span>
+                                            <input 
+                                              type="text" 
+                                              value={(qnaConfig.instructors || []).join(', ')}
+                                              onChange={(e) => updateQnaDayConfig(slot.id, day.value, 'instructors', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                                              placeholder="e.g. instructor_1, instructor_2"
+                                              className="w-full bg-white/5 border border-brand-border rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                                            />
                                           </div>
                                         </div>
                                       );

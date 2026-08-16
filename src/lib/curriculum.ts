@@ -25,12 +25,14 @@ export interface CurriculumBlueprint {
   globalBatches?: string[];
   globalSaturdayLink?: string;
   globalSundayLink?: string;
+  globalInstructors?: string[];
 }
 
 export const DEFAULT_CURRICULUM_BLUEPRINT: CurriculumBlueprint = {
   globalBatches: [],
   globalSaturdayLink: '',
   globalSundayLink: '',
+  globalInstructors: [],
   phases: [
     {
       id: 'p1.1',
