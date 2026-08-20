@@ -73,6 +73,8 @@ type QnaDayConfig = {
   endTime?: string;
   title?: string;
   link?: string;
+  platform?: 'ZOOM' | 'MEET';
+  category?: 'qna-sessions-aig' | 'qna-sessions-bsiai' | string;
 };
 
 type TimeSlot = {
@@ -1298,7 +1300,7 @@ export default function App() {
         endTime: '20:30',
         tueThuStartTime: '18:30',
         tueThuEndTime: '21:30',
-        tueThuTitle: 'Open Mic Q&A Session',
+        tueThuTitle: 'Open Mic Q&A',
         title: 'Q&A session',
         description: '',
         sessionLink: '',
@@ -1526,9 +1528,12 @@ export default function App() {
       instructors: isDefaultOpenMic 
         ? (dayValue === 2 ? (slot.instructorsTue || ['']) : (slot.instructorsThu || ['']))
         : slot.instructors,
-      startTime: isDefaultOpenMic ? (slot.tueThuStartTime || slot.startTime) : slot.startTime,
-      endTime: isDefaultOpenMic ? (slot.tueThuEndTime || slot.endTime) : slot.endTime,
-      title: isDefaultOpenMic ? (slot.tueThuTitle || 'Open Mic Q&A Session') : slot.title
+      platform: slot.sessionPlatform,
+      category: slot.category,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      title: slot.title,
+      link: slot.sessionLink
     };
   };
 
@@ -1827,7 +1832,7 @@ export default function App() {
             const qnaConfig = getQnaDayConfig(slot, dayOfWeek);
             currentStartTime = qnaConfig.startTime || slot.startTime;
             currentEndTime = qnaConfig.endTime || slot.endTime;
-            finalTitle = qnaConfig.title || (qnaConfig.type === 'open-mic' ? 'Open Mic Q&A Session' : slot.title);
+            finalTitle = qnaConfig.title || (qnaConfig.type === 'open-mic' ? 'Open Mic Q&A' : slot.title);
           }
 
           const [startH, startM] = currentStartTime.split(':').map(Number);
@@ -1862,6 +1867,17 @@ export default function App() {
             }
           }
 
+          let sessionPlatform = slot.sessionPlatform;
+          if (dayOption !== 'custom' && slot.category.startsWith('qna-sessions')) {
+            const qnaConfig = getQnaDayConfig(slot, dayOfWeek);
+            if (qnaConfig.platform) {
+              sessionPlatform = qnaConfig.platform;
+            }
+            if (qnaConfig.category) {
+              finalCategory = qnaConfig.category;
+            }
+          }
+
           let currentInstructors = slot.instructors;
           if (dayOption === 'custom') {
             const customConfig = slot.customDayConfigs?.[dayOfWeek];
@@ -1879,7 +1895,7 @@ export default function App() {
             title: finalTitle,
             description: slot.description,
             sessionLink: sessionLink,
-            sessionPlatform: slot.sessionPlatform,
+            sessionPlatform: sessionPlatform,
             category: finalCategory,
             startTime: startStr,
             endTime: endStr,
@@ -2262,63 +2278,62 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Day Selection */}
+              {/* Session Category Selection */}
               <div className="space-y-5">
                 <label className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400 flex items-center gap-2.5">
-                  <ChevronRight size={14} className="text-brand-accent-violet" />
-                  Day Selection
+                  <Layers size={14} className="text-brand-accent-violet" />
+                  Session Category
                 </label>
                 <div className="flex bg-white/[0.05] p-1 rounded-2xl border border-brand-border relative overflow-hidden">
-                  {(['weekdays', 'weekends', 'custom'] as DayOption[]).map((option) => (
-                    <button
-                      key={option}
-                      onClick={() => setDayOption(option)}
-                      className={`relative z-10 flex-1 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 ${
-                        dayOption === option 
-                          ? 'text-white' 
-                          : 'text-slate-400 hover:text-slate-200'
-                      }`}
-                    >
-                      {dayOption === option && (
-                        <motion.div 
-                          layoutId="dayOptionBg"
-                          className="absolute inset-0 bg-brand-accent-violet text-white rounded-xl -z-10 shadow-lg"
-                          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                        />
-                      )}
-                      {option.charAt(0).toUpperCase() + option.slice(1)}
-                    </button>
-                  ))}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIncludeLiveSessions(true);
+                      setIncludeQnaSessions(false);
+                    }}
+                    className={`relative z-10 flex-1 py-3 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 ${
+                      includeLiveSessions && !includeQnaSessions
+                        ? 'text-white'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {includeLiveSessions && !includeQnaSessions && (
+                      <motion.div 
+                        layoutId="categoryOptionBg"
+                        className="absolute inset-0 bg-brand-accent-violet text-white rounded-xl -z-10 shadow-lg"
+                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                      />
+                    )}
+                    <Database size={14} />
+                    <span>Live Sessions (Curriculum Manager)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIncludeLiveSessions(false);
+                      setIncludeQnaSessions(true);
+                    }}
+                    className={`relative z-10 flex-1 py-3 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 ${
+                      includeQnaSessions && !includeLiveSessions
+                        ? 'text-white'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {includeQnaSessions && !includeLiveSessions && (
+                      <motion.div 
+                        layoutId="categoryOptionBg"
+                        className="absolute inset-0 bg-brand-accent-violet text-white rounded-xl -z-10 shadow-lg"
+                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                      />
+                    )}
+                    <Clock size={14} />
+                    <span>Q&A Sessions (Time Slots)</span>
+                  </button>
                 </div>
-
-                <AnimatePresence mode="wait">
-                  {dayOption === 'custom' && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="flex flex-wrap gap-2.5 pt-2"
-                    >
-                      {DAYS_OF_WEEK.map((day) => (
-                        <button
-                          key={day.value}
-                          onClick={() => toggleCustomDay(day.value)}
-                          className={`w-11 h-11 rounded-2xl text-[11px] font-bold transition-all flex items-center justify-center border-2 ${
-                            customDays.includes(day.value)
-                              ? 'bg-brand-accent-violet/10 border-indigo-500 text-brand-accent-teal shadow-sm'
-                              : 'bg-white/5 border-brand-border text-slate-400 hover:border-brand-border'
-                          }`}
-                        >
-                          {day.label}
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
 
-              {/* Curriculum Manager UI Component */}
-              <div className="bg-white/5 rounded-3xl shadow-sm border border-brand-border overflow-hidden mb-8">
+              {includeLiveSessions && !includeQnaSessions && (
+                <div className="bg-white/5 rounded-3xl shadow-sm border border-brand-border overflow-hidden mb-8">
                 <div className="p-6 border-b border-brand-border flex items-center justify-between bg-white/[0.03] flex-wrap gap-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-brand-accent-violet/10 flex items-center justify-center text-brand-accent-teal">
@@ -2497,8 +2512,11 @@ export default function App() {
                   </div>
                 </div>
               </div>
+              )}
 
-              {/* Time Slots Selection */}
+              {includeQnaSessions && !includeLiveSessions && (
+                <div className="space-y-8">
+                  {/* Time Slots Selection */}
               <div className="space-y-5">
                 <div className="flex items-center justify-between">
                   <label className="text-[11px] font-bold uppercase tracking-[0.15em] text-slate-400 flex items-center gap-2.5">
@@ -2559,27 +2577,13 @@ export default function App() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="bg-white/[0.03] rounded-3xl p-6 border border-brand-border space-y-6"
+                    className="space-y-6"
                   >
-                    <div className="flex items-center justify-between border-b border-brand-border pb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-xl bg-indigo-100 flex items-center justify-center text-brand-accent-teal">
-                          <Zap size={16} />
-                        </div>
-                        <h3 className="text-sm font-bold text-slate-200">
-                          Slot Configuration
-                        </h3>
-                      </div>
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full border border-brand-border">
-                        Active
-                      </span>
-                    </div>
-
                     {(() => {
                       const slot = timeSlots.find(s => s.id === selectedSlotId)!;
                       return (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {dayOption === 'custom' ? (
+                          {dayOption === 'custom' && (
                             <>
                               {customDays.length === 0 ? (
                                 <div className="col-span-2 text-center py-6 px-4 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-2xl text-xs font-semibold">
@@ -2679,90 +2683,9 @@ export default function App() {
                                 })
                               )}
                             </>
-                          ) : (
-                            <>
-                              <div className="col-span-2 space-y-3">
-                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Base Q&A Session Time</span>
-                                <div className="grid grid-cols-2 gap-4">
-                                  <TimeInput12h 
-                                    label="Start Time"
-                                    value={slot.startTime}
-                                    onChange={(val) => updateTimeSlot(slot.id, 'startTime', val)}
-                                  />
-                                  <TimeInput12h 
-                                    label="End Time"
-                                    value={slot.endTime}
-                                    onChange={(val) => updateTimeSlot(slot.id, 'endTime', val)}
-                                  />
-                                </div>
-                              </div>
-                              <div className="col-span-2 space-y-1.5">
-                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Base Q&A Title</span>
-                                <input 
-                                  type="text" 
-                                  value={slot.title}
-                                  onChange={(e) => updateTimeSlot(slot.id, 'title', e.target.value)}
-                                  placeholder="Session Title (e.g. Q&A session)..."
-                                  className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
-                                />
-                              </div>
-                            </>
                           )}
 
-                          <div className={dayOption === 'custom' ? "col-span-2 space-y-1.5" : "space-y-1.5"}>
-                            <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Platform</span>
-                            <div className="flex bg-white/5 border border-brand-border rounded-xl p-1 relative shadow-sm">
-                              {(['ZOOM', 'MEET'] as const).map((p) => (
-                                <button
-                                  key={p}
-                                  onClick={() => updateTimeSlot(slot.id, 'sessionPlatform', p)}
-                                  className={`relative z-10 flex-1 py-2 text-[10px] font-bold rounded-lg transition-all duration-300 ${
-                                    slot.sessionPlatform === p 
-                                      ? 'text-white' 
-                                      : 'text-slate-400 hover:text-slate-500'
-                                  }`}
-                                >
-                                  {slot.sessionPlatform === p && (
-                                    <motion.div 
-                                      layoutId={`platformBg-${slot.id}`}
-                                      className="absolute inset-0 bg-brand-accent-violet text-white rounded-lg -z-10 shadow-md"
-                                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                                    />
-                                  )}
-                                  {p}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          {dayOption !== 'custom' && (
-                            <div className="space-y-1.5">
-                              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Category</span>
-                              <div className="flex bg-white/5 border border-brand-border rounded-xl p-1 relative shadow-sm">
-                                {(['qna-sessions-aig', 'qna-sessions-bsiai'] as string[]).map((c) => (
-                                  <button
-                                    key={c}
-                                    onClick={() => updateTimeSlot(slot.id, 'category', c)}
-                                    className={`relative z-10 flex-1 py-2 text-[9px] font-bold rounded-lg transition-all duration-300 ${
-                                      slot.category === c 
-                                        ? 'text-white' 
-                                        : 'text-slate-400 hover:text-slate-500'
-                                    }`}
-                                  >
-                                    {slot.category === c && (
-                                      <motion.div 
-                                        layoutId={`categoryBg-${slot.id}`}
-                                        className="absolute inset-0 bg-brand-accent-violet text-white rounded-lg -z-10 shadow-md"
-                                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                                      />
-                                    )}
-                                    {c === 'qna-sessions-aig' ? 'Q&A' : c === 'qna-sessions-bsiai' ? 'BSIAI Q&A' : c}
-                                  </button>
-                                ))}
-                                <button type="button" onClick={() => setShowCategoryModal(true)} className="relative z-10 px-2 py-2 text-[9px] font-bold rounded-lg text-slate-400 hover:text-white transition-all flex items-center justify-center bg-white/5 ml-1">+ Add</button>
-                              </div>
-                            </div>
-                          )}
+                          {/* Platform and Category moved to Filter Days section */}
 
                           {dayOption !== 'custom' && (
                             <div className="col-span-2">
@@ -2829,37 +2752,84 @@ export default function App() {
 
                           {dayOption !== 'custom' && (
                             <div className="col-span-2 space-y-4">
-                              {/* Day Filtering Option for Q&A Generation */}
-                              <div className="space-y-2 bg-white/[0.02] p-3 rounded-2xl border border-brand-border">
+                              {/* Filter Days & Settings for Q&A Generation */}
+                              <div className="space-y-4 bg-white/[0.02] p-4 rounded-2xl border border-brand-border">
                                 <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
                                   <CalendarDays size={12} className="text-brand-accent-teal" />
-                                  Filter Days for Q&A Generation
+                                  Filter Days & Settings for Q&A Generation
                                 </span>
-                                <div className="flex flex-wrap gap-2">
-                                  {DAYS_LIST.map((d) => {
-                                    const currentFilter = slot.qnaDayFilter || activeDaysList.map(item => item.value);
-                                    const isSelected = currentFilter.includes(d.value);
-                                    return (
-                                      <button
-                                        key={`qna-filter-${d.value}`}
-                                        type="button"
-                                        onClick={() => {
-                                          const current = slot.qnaDayFilter || activeDaysList.map(item => item.value);
-                                          const updated = current.includes(d.value)
-                                            ? current.filter(v => v !== d.value)
-                                            : [...current, d.value];
-                                          setTimeSlots(timeSlots.map(s => s.id === slot.id ? { ...s, qnaDayFilter: updated } : s));
-                                        }}
-                                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                                          isSelected
-                                            ? 'bg-brand-accent-violet/20 border-brand-accent-violet text-brand-accent-teal shadow-sm'
-                                            : 'bg-white/5 border-brand-border text-slate-400 hover:border-slate-500'
-                                        }`}
-                                      >
-                                        {d.label.slice(0, 3)}
-                                      </button>
-                                    );
-                                  })}
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="space-y-1.5">
+                                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Platform</span>
+                                    <div className="flex bg-white/5 border border-brand-border rounded-xl p-1 relative shadow-sm">
+                                      {(['ZOOM', 'MEET'] as const).map((p) => (
+                                        <button
+                                          key={p}
+                                          type="button"
+                                          onClick={() => updateTimeSlot(slot.id, 'sessionPlatform', p)}
+                                          className={`relative z-10 flex-1 py-2 text-[10px] font-bold rounded-lg transition-all duration-300 ${
+                                            slot.sessionPlatform === p 
+                                              ? 'text-white bg-brand-accent-violet' 
+                                              : 'text-slate-400 hover:text-slate-500'
+                                          }`}
+                                        >
+                                          {p}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-1.5">
+                                    <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Category</span>
+                                    <div className="flex bg-white/5 border border-brand-border rounded-xl p-1 relative shadow-sm">
+                                      {(['qna-sessions-aig', 'qna-sessions-bsiai'] as string[]).map((c) => (
+                                        <button
+                                          key={c}
+                                          type="button"
+                                          onClick={() => updateTimeSlot(slot.id, 'category', c)}
+                                          className={`relative z-10 flex-1 py-2 text-[9px] font-bold rounded-lg transition-all duration-300 ${
+                                            slot.category === c 
+                                              ? 'text-white bg-brand-accent-violet' 
+                                              : 'text-slate-400 hover:text-slate-500'
+                                          }`}
+                                        >
+                                          {c === 'qna-sessions-aig' ? 'Q&A' : c === 'qna-sessions-bsiai' ? 'BSIAI Q&A' : c}
+                                        </button>
+                                      ))}
+                                      <button type="button" onClick={() => setShowCategoryModal(true)} className="relative z-10 px-2 py-2 text-[9px] font-bold rounded-lg text-slate-400 hover:text-white transition-all flex items-center justify-center bg-white/5 ml-1">+ Add</button>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-2 pt-2 border-t border-white/[0.05]">
+                                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide block">Active Days</span>
+                                  <div className="flex flex-wrap gap-2">
+                                    {DAYS_LIST.map((d) => {
+                                      const currentFilter = slot.qnaDayFilter || activeDaysList.map(item => item.value);
+                                      const isSelected = currentFilter.includes(d.value);
+                                      return (
+                                        <button
+                                          key={`qna-filter-${d.value}`}
+                                          type="button"
+                                          onClick={() => {
+                                            const current = slot.qnaDayFilter || activeDaysList.map(item => item.value);
+                                            const updated = current.includes(d.value)
+                                              ? current.filter(v => v !== d.value)
+                                              : [...current, d.value];
+                                            setTimeSlots(timeSlots.map(s => s.id === slot.id ? { ...s, qnaDayFilter: updated } : s));
+                                          }}
+                                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                                            isSelected
+                                              ? 'bg-brand-accent-violet/20 border-brand-accent-violet text-brand-accent-teal shadow-sm'
+                                              : 'bg-white/5 border-brand-border text-slate-400 hover:border-slate-500'
+                                          }`}
+                                        >
+                                          {d.label.slice(0, 3)}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
                               </div>
                               {(
@@ -2871,7 +2841,7 @@ export default function App() {
                                       Q&A Category & Day Configuration
                                     </h4>
                                     <p className="text-[10px] text-slate-500 mt-1">
-                                      Configure Normal Q&A vs Open Mic Q&A, titles, start & end times, links, and instructor IDs for your selected filter days.
+                                      Configure Normal Q&A vs Open Mic Q&A, titles, and instructor IDs for your selected filter days.
                                     </p>
                                   </div>
 
@@ -2928,54 +2898,36 @@ export default function App() {
                                             </div>
                                           </div>
 
-                                          {/* Sub-config: Title and Times */}
-                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 pt-3 border-t border-white/[0.05]">
-                                            {/* Custom Times */}
-                                            <div className="space-y-2">
-                                              <span className="text-[9px] text-slate-400 uppercase font-bold tracking-wide">Start & End Time</span>
-                                              <div className="grid grid-cols-2 gap-2">
-                                                <TimeInput12h 
-                                                  label="Start Time"
-                                                  value={qnaConfig.startTime || slot.startTime}
-                                                  onChange={(val) => updateQnaDayConfig(slot.id, day.value, 'startTime', val)}
-                                                />
-                                                <TimeInput12h 
-                                                  label="End Time"
-                                                  value={qnaConfig.endTime || slot.endTime}
-                                                  onChange={(val) => updateQnaDayConfig(slot.id, day.value, 'endTime', val)}
-                                                />
-                                              </div>
+                                          {/* Time and Title Config */}
+                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3 pt-3 border-t border-white/[0.05]">
+                                            <div className="space-y-1.5">
+                                              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Start Time</span>
+                                              <TimeInput12h 
+                                                value={qnaConfig.startTime || slot.startTime}
+                                                onChange={(val) => updateQnaDayConfig(slot.id, day.value, 'startTime', val)}
+                                              />
                                             </div>
-
-                                            {/* Custom Title */}
-                                            <div className="space-y-2">
-                                              <span className="text-[9px] text-slate-400 uppercase font-bold tracking-wide">Session Title</span>
+                                            <div className="space-y-1.5">
+                                              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">End Time</span>
+                                              <TimeInput12h 
+                                                value={qnaConfig.endTime || slot.endTime}
+                                                onChange={(val) => updateQnaDayConfig(slot.id, day.value, 'endTime', val)}
+                                              />
+                                            </div>
+                                            <div className="col-span-1 md:col-span-2 space-y-1.5">
+                                              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Session Title</span>
                                               <input 
                                                 type="text" 
                                                 value={qnaConfig.title || ''}
                                                 onChange={(e) => updateQnaDayConfig(slot.id, day.value, 'title', e.target.value)}
-                                                placeholder={isOpenMic ? "Open Mic Q&A Session" : "Default Q&A title"}
+                                                placeholder={isOpenMic ? "Open Mic Q&A" : "Q&A session"}
                                                 className="w-full bg-white/5 border border-brand-border rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
                                               />
                                             </div>
                                           </div>
 
-                                          {/* Link and Instructor IDs */}
-                                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-white/[0.05]">
-                                            <div className="space-y-2">
-                                              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
-                                                <ExternalLink size={10} />
-                                                Session Link
-                                              </span>
-                                              <input 
-                                                type="text" 
-                                                value={qnaConfig.link || slot.sessionLink || ''}
-                                                onChange={(e) => updateQnaDayConfig(slot.id, day.value, 'link', e.target.value)}
-                                                placeholder="https://..."
-                                                className="w-full bg-white/5 border border-brand-border rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
-                                              />
-                                            </div>
-
+                                          {/* Instructor IDs */}
+                                          <div className="pt-3 border-t border-white/[0.05]">
                                             <div className="space-y-2">
                                               <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
                                                 <Users size={10} />
@@ -2985,7 +2937,7 @@ export default function App() {
                                                 type="text" 
                                                 value={(qnaConfig.instructors || []).join(', ')}
                                                 onChange={(e) => updateQnaDayConfig(slot.id, day.value, 'instructors', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-                                                placeholder="e.g. instructor_1, instructor_2"
+                                                placeholder="e.g. instructor_1"
                                                 className="w-full bg-white/5 border border-brand-border rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
                                               />
                                             </div>
@@ -3077,29 +3029,9 @@ export default function App() {
                   </motion.div>
                 )}
               </AnimatePresence>
-
-              {/* Action Button */}
+              </div>
+              )}
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-white/[0.03] p-4 rounded-2xl border border-brand-border">
-                  <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-slate-200">
-                    <input 
-                      type="checkbox" 
-                      checked={includeLiveSessions} 
-                      onChange={(e) => setIncludeLiveSessions(e.target.checked)}
-                      className="w-4 h-4 rounded border-brand-border text-brand-accent-violet focus:ring-brand-accent-violet/20 bg-white/5"
-                    />
-                    <span>Live Sessions (Curriculum Phases)</span>
-                  </label>
-                  <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-slate-200">
-                    <input 
-                      type="checkbox" 
-                      checked={includeQnaSessions} 
-                      onChange={(e) => setIncludeQnaSessions(e.target.checked)}
-                      className="w-4 h-4 rounded border-brand-border text-brand-accent-violet focus:ring-brand-accent-violet/20 bg-white/5"
-                    />
-                    <span>Q&A Sessions (Time Slots)</span>
-                  </label>
-                </div>
                 <div className="text-center">
                   <p className="text-xs text-slate-400 font-medium">
                     This will generate <span className={`font-bold ${sessionCount === 0 ? 'text-red-500' : 'text-slate-500'}`}>{sessionCount}</span> total sessions based on your current settings.
