@@ -868,6 +868,38 @@ export default function App() {
   const [scheduleCategoryFilter, setScheduleCategoryFilter] = useState<string>('all');
   const [includeLiveSessions, setIncludeLiveSessions] = useState<boolean>(true);
   const [includeQnaSessions, setIncludeQnaSessions] = useState<boolean>(false);
+  const [includeFfaSessions, setIncludeFfaSessions] = useState<boolean>(false);
+  const [ffaSettings, setFfaSettings] = useState<{
+    days: number[];
+    startTime: string;
+    endTime: string;
+    title: string;
+    sessionLink: string;
+    instructors: string[];
+    course: string[];
+    batch: string[];
+    courseGroup: string;
+    dayConfigs: {
+      [dayOfWeek: number]: {
+        startTime: string;
+        endTime: string;
+        title: string;
+        link?: string;
+        instructors?: string[];
+      }
+    };
+  }>({
+    days: [1, 2, 3, 4, 5],
+    startTime: '17:00',
+    endTime: '19:00',
+    title: 'FFA Session',
+    sessionLink: '',
+    instructors: ['instructor_1'],
+    course: ['64cbc49c-2fda-4873-9825-cbfafa3fabd6'],
+    batch: ['d2f53a0d-3577-40d2-aea3-eebc2b7a7cae'],
+    courseGroup: 'FFA',
+    dayConfigs: {}
+  });
   const [timingPopup, setTimingPopup] = useState<{
     isOpen: boolean;
     slotId: string;
@@ -1426,6 +1458,10 @@ export default function App() {
         p.sessions.map(s => ({ name: s.title, phaseId: p.id, phase: p }))
       );
       count += curriculumManagerList.length;
+    }
+    if (includeFfaSessions) {
+      const ffaDaysCount = allDays.filter(date => ffaSettings.days.includes(getDay(date))).length;
+      count += ffaDaysCount;
     }
 
     return count;
@@ -2000,6 +2036,53 @@ export default function App() {
       }
     }
 
+    // 3. Generate FFA Sessions (if enabled)
+    if (includeFfaSessions) {
+      allDays.forEach(date => {
+        const dayOfWeek = getDay(date);
+        if (!ffaSettings.days.includes(dayOfWeek)) {
+          return;
+        }
+
+        const dayConfig = ffaSettings.dayConfigs?.[dayOfWeek];
+        const currentStartTime = dayConfig?.startTime || ffaSettings.startTime;
+        const currentEndTime = dayConfig?.endTime || ffaSettings.endTime;
+        const finalTitle = dayConfig?.title || ffaSettings.title;
+        const sessionLink = dayConfig?.link || ffaSettings.sessionLink;
+        const instructorsList = dayConfig?.instructors || ffaSettings.instructors;
+
+        const [startH, startM] = currentStartTime.split(':').map(Number);
+        const [endH, endM] = currentEndTime.split(':').map(Number);
+        const startDateTime = set(date, { hours: startH, minutes: startM, seconds: 0 });
+        let endDateTime = set(date, { hours: endH, minutes: endM, seconds: 0 });
+
+        if (endDateTime <= startDateTime) {
+          endDateTime = addDays(endDateTime, 1);
+        }
+
+        const startStr = formatInTimeZone(startDateTime, IST_TIMEZONE, 'd MMMM yyyy hh:mm a') + ' IST';
+        const endStr = formatInTimeZone(endDateTime, IST_TIMEZONE, 'd MMMM yyyy hh:mm a') + ' IST';
+
+        const courseValue = ffaSettings.course.filter(c => c.trim() !== '').join(', ');
+        const batchValue = ffaSettings.batch.filter(b => b.trim() !== '').join(', ');
+
+        schedule.push({
+          title: finalTitle,
+          description: 'FFA Session',
+          sessionLink: sessionLink,
+          sessionPlatform: 'ZOOM',
+          category: 'live-sessions-aig',
+          startTime: startStr,
+          endTime: endStr,
+          instructors: instructorsList.filter(i => i.trim() !== '').join(', '),
+          course: courseValue,
+          batch: batchValue,
+          courseGroup: ffaSettings.courseGroup,
+          _rawDate: startDateTime
+        } as any);
+      });
+    }
+
     // Sort combined schedule by date and time
     schedule.sort((a: any, b: any) => a._rawDate.getTime() - b._rawDate.getTime());
     
@@ -2290,14 +2373,15 @@ export default function App() {
                     onClick={() => {
                       setIncludeLiveSessions(true);
                       setIncludeQnaSessions(false);
+                      setIncludeFfaSessions(false);
                     }}
                     className={`relative z-10 flex-1 py-3 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 ${
-                      includeLiveSessions && !includeQnaSessions
+                      includeLiveSessions && !includeQnaSessions && !includeFfaSessions
                         ? 'text-white'
                         : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    {includeLiveSessions && !includeQnaSessions && (
+                    {includeLiveSessions && !includeQnaSessions && !includeFfaSessions && (
                       <motion.div 
                         layoutId="categoryOptionBg"
                         className="absolute inset-0 bg-brand-accent-violet text-white rounded-xl -z-10 shadow-lg"
@@ -2312,14 +2396,15 @@ export default function App() {
                     onClick={() => {
                       setIncludeLiveSessions(false);
                       setIncludeQnaSessions(true);
+                      setIncludeFfaSessions(false);
                     }}
                     className={`relative z-10 flex-1 py-3 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 ${
-                      includeQnaSessions && !includeLiveSessions
+                      !includeLiveSessions && includeQnaSessions && !includeFfaSessions
                         ? 'text-white'
                         : 'text-slate-400 hover:text-slate-200'
                     }`}
                   >
-                    {includeQnaSessions && !includeLiveSessions && (
+                    {!includeLiveSessions && includeQnaSessions && !includeFfaSessions && (
                       <motion.div 
                         layoutId="categoryOptionBg"
                         className="absolute inset-0 bg-brand-accent-violet text-white rounded-xl -z-10 shadow-lg"
@@ -2328,6 +2413,29 @@ export default function App() {
                     )}
                     <Clock size={14} />
                     <span>Q&A Sessions (Time Slots)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIncludeLiveSessions(false);
+                      setIncludeQnaSessions(false);
+                      setIncludeFfaSessions(true);
+                    }}
+                    className={`relative z-10 flex-1 py-3 rounded-xl text-xs font-bold transition-all duration-300 flex items-center justify-center gap-2 ${
+                      !includeLiveSessions && !includeQnaSessions && includeFfaSessions
+                        ? 'text-white'
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {!includeLiveSessions && !includeQnaSessions && includeFfaSessions && (
+                      <motion.div 
+                        layoutId="categoryOptionBg"
+                        className="absolute inset-0 bg-brand-accent-violet text-white rounded-xl -z-10 shadow-lg"
+                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                      />
+                    )}
+                    <Calendar size={14} />
+                    <span>FFA Sessions</span>
                   </button>
                 </div>
               </div>
@@ -3031,6 +3139,177 @@ export default function App() {
               </AnimatePresence>
               </div>
               )}
+
+              {!includeLiveSessions && !includeQnaSessions && includeFfaSessions && (
+                <div className="bg-white/5 rounded-3xl shadow-sm border border-brand-border p-6 space-y-6 mb-8">
+                  <div className="flex items-center gap-3 border-b border-brand-border pb-4">
+                    <div className="w-10 h-10 rounded-2xl bg-brand-accent-violet/10 flex items-center justify-center text-brand-accent-teal">
+                      <Calendar size={20} />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-white">FFA Session Configuration</h2>
+                      <p className="text-xs text-slate-400">Configure custom days (Mon-Sun), independent times, session link, instructors, and course ID mapping</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-6">
+                    {/* Day Selection (Mon-Sun) */}
+                    <div className="space-y-3">
+                      <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
+                        <CalendarDays size={12} className="text-brand-accent-teal" />
+                        Select Active Days for FFA
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {DAYS_LIST.map((d) => {
+                          const isSelected = ffaSettings.days.includes(d.value);
+                          return (
+                            <button
+                              key={`ffa-day-${d.value}`}
+                              type="button"
+                              onClick={() => {
+                                const updated = isSelected
+                                  ? ffaSettings.days.filter(v => v !== d.value)
+                                  : [...ffaSettings.days, d.value];
+                                setFfaSettings({ ...ffaSettings, days: updated });
+                              }}
+                              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all border ${
+                                isSelected
+                                  ? 'bg-brand-accent-violet/20 border-brand-accent-violet text-brand-accent-teal shadow-sm'
+                                  : 'bg-white/5 border-brand-border text-slate-400 hover:border-slate-500'
+                              }`}
+                            >
+                              {d.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Default Settings & Base Link / Instructor / Course */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-white/[0.05]">
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Session Title</span>
+                        <input
+                          type="text"
+                          value={ffaSettings.title}
+                          onChange={(e) => setFfaSettings({ ...ffaSettings, title: e.target.value })}
+                          placeholder="FFA Session"
+                          className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-xs font-semibold text-slate-200 focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1">
+                          <ExternalLink size={10} />
+                          Session Link *
+                        </span>
+                        <input
+                          type="text"
+                          value={ffaSettings.sessionLink}
+                          onChange={(e) => setFfaSettings({ ...ffaSettings, sessionLink: e.target.value })}
+                          placeholder="https://..."
+                          className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-xs font-semibold text-slate-200 focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1">
+                          <Users size={10} />
+                          Instructor ID(s) *
+                        </span>
+                        <input
+                          type="text"
+                          value={ffaSettings.instructors.join(', ')}
+                          onChange={(e) => setFfaSettings({ ...ffaSettings, instructors: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                          placeholder="e.g. instructor_1"
+                          className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-xs font-semibold text-slate-200 focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Course ID Mapping *</span>
+                        <input
+                          type="text"
+                          value={ffaSettings.course.join(', ')}
+                          onChange={(e) => setFfaSettings({ ...ffaSettings, course: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                          placeholder="e.g. 64cbc49c-2fda-4873-9825-cbfafa3fabd6"
+                          className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-xs font-semibold text-slate-200 focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Batch ID Mapping *</span>
+                        <input
+                          type="text"
+                          value={ffaSettings.batch.join(', ')}
+                          onChange={(e) => setFfaSettings({ ...ffaSettings, batch: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                          placeholder="e.g. d2f53a0d-3577-40d2-aea3-eebc2b7a7cae"
+                          className="w-full bg-white/5 border border-brand-border rounded-xl px-4 py-3 text-xs font-semibold text-slate-200 focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Independent Time per Selected Day */}
+                    <div className="space-y-4 pt-4 border-t border-white/[0.05]">
+                      <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wide">Independent Timings per Active Day</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {DAYS_LIST.filter(d => ffaSettings.days.includes(d.value)).map(day => {
+                          const dayConfig = ffaSettings.dayConfigs[day.value] || {
+                            startTime: ffaSettings.startTime,
+                            endTime: ffaSettings.endTime,
+                            title: ffaSettings.title,
+                            link: ffaSettings.sessionLink,
+                            instructors: ffaSettings.instructors
+                          };
+                          return (
+                            <div key={`ffa-timing-${day.value}`} className="bg-white/[0.03] p-4 rounded-2xl border border-brand-border space-y-3">
+                              <div className="flex items-center justify-between border-b border-white/[0.05] pb-2">
+                                <span className="text-xs font-bold text-brand-accent-teal">{day.label} Timing</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <TimeInput12h
+                                  label="Start Time"
+                                  value={dayConfig.startTime}
+                                  onChange={(val) => {
+                                    const updatedConfigs = {
+                                      ...ffaSettings.dayConfigs,
+                                      [day.value]: { ...dayConfig, startTime: val }
+                                    };
+                                    setFfaSettings({ ...ffaSettings, dayConfigs: updatedConfigs });
+                                  }}
+                                />
+                                <TimeInput12h
+                                  label="End Time"
+                                  value={dayConfig.endTime}
+                                  onChange={(val) => {
+                                    const updatedConfigs = {
+                                      ...ffaSettings.dayConfigs,
+                                      [day.value]: { ...dayConfig, endTime: val }
+                                    };
+                                    setFfaSettings({ ...ffaSettings, dayConfigs: updatedConfigs });
+                                  }}
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Day Title</span>
+                                <input
+                                  type="text"
+                                  value={dayConfig.title}
+                                  onChange={(e) => {
+                                    const updatedConfigs = {
+                                      ...ffaSettings.dayConfigs,
+                                      [day.value]: { ...dayConfig, title: e.target.value }
+                                    };
+                                    setFfaSettings({ ...ffaSettings, dayConfigs: updatedConfigs });
+                                  }}
+                                  className="w-full bg-white/5 border border-brand-border rounded-xl px-3 py-2 text-xs font-semibold text-slate-200"
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-4">
                 <div className="text-center">
                   <p className="text-xs text-slate-400 font-medium">
