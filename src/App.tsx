@@ -474,7 +474,7 @@ const SortableSession = ({ session, phaseId, onRename, onDelete }: {
   );
 };
 
-const SortablePhase = ({ phase, onRenameSession, onDeleteSession, onAddSession, onDeletePhase, onRenamePhase, onUpdatePhase }: { 
+const SortablePhase = ({ phase, onRenameSession, onDeleteSession, onAddSession, onDeletePhase, onRenamePhase, onUpdatePhase, onUpdatePhaseTiming }: { 
   key?: string;
   phase: CurriculumPhase;
   onRenameSession: (phaseId: string, sessionId: string, newTitle: string) => void;
@@ -483,6 +483,7 @@ const SortablePhase = ({ phase, onRenameSession, onDeleteSession, onAddSession, 
   onDeletePhase: (phaseId: string) => void;
   onRenamePhase: (phaseId: string, newName: string) => void;
   onUpdatePhase: (phaseId: string, updates: Partial<CurriculumPhase>) => void;
+  onUpdatePhaseTiming?: (phaseId: string, dayValue: number, key: 'startTime' | 'endTime', value: string) => void;
 }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ 
     id: phase.id,
@@ -590,9 +591,31 @@ const SortablePhase = ({ phase, onRenameSession, onDeleteSession, onAddSession, 
                     <div key={dayVal} className="flex items-center gap-2">
                       <label className="text-[10px] text-brand-accent-teal uppercase font-bold w-12 shrink-0">{dayName}</label>
                       <div className="flex flex-col 2xl:flex-row items-start 2xl:items-center gap-1 flex-1">
-                        <div onPointerDown={(e) => e.stopPropagation()} className="w-full 2xl:w-auto 2xl:flex-1 min-w-0"><TimeInput12h value={st || '00:00'} onChange={(val) => onUpdatePhase(phase.id, { dayTimes: { ...(phase.dayTimes || {}), [dayVal]: { startTime: val, endTime: et } } })} /></div>
+                        <div onPointerDown={(e) => e.stopPropagation()} className="w-full 2xl:w-auto 2xl:flex-1 min-w-0">
+                          <TimeInput12h 
+                            value={st || '00:00'} 
+                            onChange={(val) => {
+                              if (onUpdatePhaseTiming) {
+                                onUpdatePhaseTiming(phase.id, dayVal, 'startTime', val);
+                              } else {
+                                onUpdatePhase(phase.id, { dayTimes: { ...(phase.dayTimes || {}), [dayVal]: { startTime: val, endTime: et } } });
+                              }
+                            }} 
+                          />
+                        </div>
                         <span className="hidden 2xl:block text-[10px] text-slate-500">-</span>
-                        <div onPointerDown={(e) => e.stopPropagation()} className="w-full 2xl:w-auto 2xl:flex-1 min-w-0"><TimeInput12h value={et || '00:00'} onChange={(val) => onUpdatePhase(phase.id, { dayTimes: { ...(phase.dayTimes || {}), [dayVal]: { startTime: st, endTime: val } } })} /></div>
+                        <div onPointerDown={(e) => e.stopPropagation()} className="w-full 2xl:w-auto 2xl:flex-1 min-w-0">
+                          <TimeInput12h 
+                            value={et || '00:00'} 
+                            onChange={(val) => {
+                              if (onUpdatePhaseTiming) {
+                                onUpdatePhaseTiming(phase.id, dayVal, 'endTime', val);
+                              } else {
+                                onUpdatePhase(phase.id, { dayTimes: { ...(phase.dayTimes || {}), [dayVal]: { startTime: st, endTime: val } } });
+                              }
+                            }} 
+                          />
+                        </div>
                       </div>
                     </div>
                   );
@@ -903,6 +926,22 @@ export default function App() {
   const [timingPopup, setTimingPopup] = useState<{
     isOpen: boolean;
     slotId: string;
+    dayValue: number;
+    startTime: string;
+    endTime: string;
+    key: 'startTime' | 'endTime';
+  } | null>(null);
+  const [ffaTimingPopup, setFfaTimingPopup] = useState<{
+    isOpen: boolean;
+    dayValue: number;
+    startTime: string;
+    endTime: string;
+    key: 'startTime' | 'endTime';
+  } | null>(null);
+
+  const [phaseTimingPopup, setPhaseTimingPopup] = useState<{
+    isOpen: boolean;
+    phaseId: string;
     dayValue: number;
     startTime: string;
     endTime: string;
@@ -1613,6 +1652,30 @@ export default function App() {
     }
   };
 
+  const updatePhaseDayConfigWithPopup = (phaseId: string, dayValue: number, key: 'startTime' | 'endTime', value: string) => {
+    updatePhase(phaseId, { 
+      dayTimes: { 
+        ...(blueprint.phases.find(p => p.id === phaseId)?.dayTimes || {}),
+        [dayValue]: {
+          startTime: key === 'startTime' ? value : (blueprint.phases.find(p => p.id === phaseId)?.dayTimes?.[dayValue]?.startTime || blueprint.phases.find(p => p.id === phaseId)?.startTime || ''),
+          endTime: key === 'endTime' ? value : (blueprint.phases.find(p => p.id === phaseId)?.dayTimes?.[dayValue]?.endTime || blueprint.phases.find(p => p.id === phaseId)?.endTime || ''),
+        }
+      } 
+    });
+    
+    const phase = blueprint.phases.find(p => p.id === phaseId);
+    if (phase) {
+      setPhaseTimingPopup({
+        isOpen: true,
+        phaseId,
+        dayValue,
+        startTime: key === 'startTime' ? value : (phase.dayTimes?.[dayValue]?.startTime || phase.startTime || ''),
+        endTime: key === 'endTime' ? value : (phase.dayTimes?.[dayValue]?.endTime || phase.endTime || ''),
+        key
+      });
+    }
+  };
+
   const updateQnaDayConfigWithPopup = (
     slotId: string,
     dayValue: number,
@@ -1660,6 +1723,64 @@ export default function App() {
       return slot;
     }));
     setTimingPopup(null);
+  };
+
+  const handleApplyFfaTimingToAll = () => {
+    if (!ffaTimingPopup) return;
+    const { startTime, endTime } = ffaTimingPopup;
+    setFfaSettings(prev => {
+      const updatedConfigs = { ...prev.dayConfigs };
+      prev.days.forEach(day => {
+        const existing = updatedConfigs[day] || {
+          startTime: prev.startTime,
+          endTime: prev.endTime,
+          title: prev.title,
+          link: prev.sessionLink,
+          instructors: prev.instructors
+        };
+        updatedConfigs[day] = {
+          ...existing,
+          startTime,
+          endTime
+        };
+      });
+      return { ...prev, dayConfigs: updatedConfigs };
+    });
+    setFfaTimingPopup(null);
+  };
+
+  const handleApplyPhaseTimingToAll = () => {
+    if (!phaseTimingPopup) return;
+    const { phaseId, startTime, endTime } = phaseTimingPopup;
+    setBlueprint(prev => {
+      const updatedPhases = prev.phases.map(p => {
+        if (p.id === phaseId) {
+          const activeDays = p.daysOfWeek && p.daysOfWeek.length > 0 
+            ? p.daysOfWeek 
+            : (p.dayOfWeek !== undefined && p.dayOfWeek !== 'all' ? [p.dayOfWeek] : []);
+            
+          const updatedDayTimes = { ...(p.dayTimes || {}) };
+          activeDays.forEach(dayVal => {
+            const existing = updatedDayTimes[dayVal] || { startTime: p.startTime || '', endTime: p.endTime || '' };
+            updatedDayTimes[dayVal] = {
+              ...existing,
+              startTime,
+              endTime
+            };
+          });
+          
+          return {
+            ...p,
+            dayTimes: updatedDayTimes
+          };
+        }
+        return p;
+      });
+      const newBlueprint = { ...prev, phases: updatedPhases };
+      localStorage.setItem('curriculum_blueprint', JSON.stringify(newBlueprint));
+      return newBlueprint;
+    });
+    setPhaseTimingPopup(null);
   };
 
   const addQnaInstructor = (slotId: string, dayValue: number) => {
@@ -2612,6 +2733,7 @@ export default function App() {
                               onDeletePhase={deletePhase}
                               onRenamePhase={renamePhase}
                               onUpdatePhase={updatePhase}
+                              onUpdatePhaseTiming={updatePhaseDayConfigWithPopup}
                             />
                           ))}
                         </div>
@@ -3012,14 +3134,14 @@ export default function App() {
                                               <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">Start Time</span>
                                               <TimeInput12h 
                                                 value={qnaConfig.startTime || slot.startTime}
-                                                onChange={(val) => updateQnaDayConfig(slot.id, day.value, 'startTime', val)}
+                                                onChange={(val) => updateQnaDayConfigWithPopup(slot.id, day.value, 'startTime', val)}
                                               />
                                             </div>
                                             <div className="space-y-1.5">
                                               <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wide">End Time</span>
                                               <TimeInput12h 
                                                 value={qnaConfig.endTime || slot.endTime}
-                                                onChange={(val) => updateQnaDayConfig(slot.id, day.value, 'endTime', val)}
+                                                onChange={(val) => updateQnaDayConfigWithPopup(slot.id, day.value, 'endTime', val)}
                                               />
                                             </div>
                                             <div className="col-span-1 md:col-span-2 space-y-1.5">
@@ -3272,6 +3394,13 @@ export default function App() {
                                       [day.value]: { ...dayConfig, startTime: val }
                                     };
                                     setFfaSettings({ ...ffaSettings, dayConfigs: updatedConfigs });
+                                    setFfaTimingPopup({
+                                      isOpen: true,
+                                      dayValue: day.value,
+                                      startTime: val,
+                                      endTime: dayConfig.endTime,
+                                      key: 'startTime'
+                                    });
                                   }}
                                 />
                                 <TimeInput12h
@@ -3283,6 +3412,13 @@ export default function App() {
                                       [day.value]: { ...dayConfig, endTime: val }
                                     };
                                     setFfaSettings({ ...ffaSettings, dayConfigs: updatedConfigs });
+                                    setFfaTimingPopup({
+                                      isOpen: true,
+                                      dayValue: day.value,
+                                      startTime: dayConfig.startTime,
+                                      endTime: val,
+                                      key: 'endTime'
+                                    });
                                   }}
                                 />
                               </div>
@@ -3706,6 +3842,106 @@ export default function App() {
                     className="flex-1 bg-gradient-to-r from-brand-accent-violet to-brand-accent-teal hover:opacity-90 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-glow"
                   >
                     Apply to All Days
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {ffaTimingPopup?.isOpen && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            >
+              <motion.div 
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-brand-surface w-full max-w-md rounded-3xl p-6 border border-brand-border shadow-2xl relative space-y-6"
+              >
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Clock size={20} className="text-brand-accent-teal" />
+                    Apply Timings to All Days?
+                  </h3>
+                  <button 
+                    onClick={() => setFfaTimingPopup(null)}
+                    className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/5 transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                
+                <p className="text-xs text-slate-300">
+                  Would you like to apply these timings (<span className="text-brand-accent-teal font-bold">{ffaTimingPopup.startTime} - {ffaTimingPopup.endTime}</span>) to all upcoming active days for FFA sessions?
+                </p>
+
+                <div className="flex gap-3 pt-2">
+                  <button 
+                    onClick={() => setFfaTimingPopup(null)}
+                    className="flex-1 bg-white/5 hover:bg-white/10 text-slate-300 py-3 rounded-xl text-xs font-bold transition-all border border-brand-border"
+                  >
+                    Only This Day
+                  </button>
+                  <button 
+                    onClick={handleApplyFfaTimingToAll}
+                    className="flex-1 bg-gradient-to-r from-brand-accent-violet to-brand-accent-teal hover:opacity-90 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-glow"
+                  >
+                    Apply to All Days
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {phaseTimingPopup?.isOpen && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            >
+              <motion.div 
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-brand-surface w-full max-w-md rounded-3xl p-6 border border-brand-border shadow-2xl relative space-y-6"
+              >
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Clock size={20} className="text-brand-accent-teal" />
+                    Apply Timings to All Days?
+                  </h3>
+                  <button 
+                    onClick={() => setPhaseTimingPopup(null)}
+                    className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/5 transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                
+                <p className="text-xs text-slate-300">
+                  Would you like to apply these timings (<span className="text-brand-accent-teal font-bold">{phaseTimingPopup.startTime} - {phaseTimingPopup.endTime}</span>) to all active days in this Live Session phase?
+                </p>
+
+                <div className="flex gap-3 pt-2">
+                  <button 
+                    onClick={() => setPhaseTimingPopup(null)}
+                    className="flex-1 bg-white/5 hover:bg-white/10 text-slate-300 py-3 rounded-xl text-xs font-bold transition-all border border-brand-border"
+                  >
+                    Only This Day
+                  </button>
+                  <button 
+                    onClick={handleApplyPhaseTimingToAll}
+                    className="flex-1 bg-gradient-to-r from-brand-accent-violet to-brand-accent-teal hover:opacity-90 text-white py-3 rounded-xl text-xs font-bold transition-all shadow-glow"
+                  >
+                    Apply to Phase Days
                   </button>
                 </div>
               </motion.div>
