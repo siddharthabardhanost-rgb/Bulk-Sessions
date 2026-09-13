@@ -1121,6 +1121,8 @@ export default function App() {
     }
   };
 
+  const [generateMultiSlots, setGenerateMultiSlots] = useState(false);
+
   const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1163,10 +1165,22 @@ export default function App() {
                 };
                 phases.push(currentPhase);
               }
-              currentPhase.sessions.push({
-                id: `s_${sessionCounter++}`,
-                title: colA.trim()
-              });
+              const baseTitle = colA.trim();
+              if (generateMultiSlots) {
+                currentPhase.sessions.push({
+                  id: `s_${sessionCounter++}`,
+                  title: `${baseTitle} (Slot A)`
+                });
+                currentPhase.sessions.push({
+                  id: `s_${sessionCounter++}`,
+                  title: `${baseTitle} (Slot B)`
+                });
+              } else {
+                currentPhase.sessions.push({
+                  id: `s_${sessionCounter++}`,
+                  title: baseTitle
+                });
+              }
             }
           });
 
@@ -2099,6 +2113,17 @@ export default function App() {
             isValidDay = false;
           }
           
+          if (isValidDay && requiresSpecificDays) {
+            const logicalDayOrder = [1, 2, 3, 4, 5, 6, 0]; // Mon to Sun
+            const sortedDays = [...phase.daysOfWeek!].sort((a, b) => logicalDayOrder.indexOf(a) - logicalDayOrder.indexOf(b));
+            
+            if (item.name.includes('(Slot A)') && sortedDays.length > 0) {
+              if (dayOfWeek !== sortedDays[0]) isValidDay = false;
+            } else if (item.name.includes('(Slot B)') && sortedDays.length > 1) {
+              if (dayOfWeek !== sortedDays[1]) isValidDay = false;
+            }
+          }
+
           if (isValidDay) {
             foundDay = true;
             
@@ -2590,16 +2615,27 @@ export default function App() {
                       />
                     </label>
 
-                    <label className="flex items-center gap-2 px-4 py-2 bg-brand-accent-teal hover:bg-brand-accent-teal/80 cursor-pointer text-white rounded-xl text-xs font-bold transition-colors shadow-sm">
-                      <FileSpreadsheet size={14} />
-                      <span>Upload CSV</span>
-                      <input 
-                        type="file" 
-                        accept=".csv" 
-                        className="hidden" 
-                        onChange={handleCSVUpload}
-                      />
-                    </label>
+                    <div className="flex items-center gap-4 bg-white/5 pl-4 pr-1 py-1 rounded-xl border border-white/10">
+                      <label className="flex items-center gap-2 text-[11px] font-bold text-slate-300 cursor-pointer hover:text-white transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={generateMultiSlots}
+                          onChange={(e) => setGenerateMultiSlots(e.target.checked)}
+                          className="w-3.5 h-3.5 rounded text-brand-accent-teal border-white/20 focus:ring-brand-accent-teal/50 bg-white/5"
+                        />
+                        Generate Slot A & B Variants
+                      </label>
+                      <label className="flex items-center gap-2 px-4 py-2 bg-brand-accent-teal hover:bg-brand-accent-teal/80 cursor-pointer text-white rounded-lg text-xs font-bold transition-colors shadow-sm">
+                        <FileSpreadsheet size={14} />
+                        <span>Upload CSV</span>
+                        <input 
+                          type="file" 
+                          accept=".csv" 
+                          className="hidden" 
+                          onChange={handleCSVUpload}
+                        />
+                      </label>
+                    </div>
                   </div>
                 </div>
                 
