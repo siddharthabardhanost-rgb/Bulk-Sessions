@@ -1677,16 +1677,19 @@ export default function App() {
       } 
     });
     
-    const phase = blueprint.phases.find(p => p.id === phaseId);
-    if (phase) {
-      setPhaseTimingPopup({
-        isOpen: true,
-        phaseId,
-        dayValue,
-        startTime: key === 'startTime' ? value : (phase.dayTimes?.[dayValue]?.startTime || phase.startTime || ''),
-        endTime: key === 'endTime' ? value : (phase.dayTimes?.[dayValue]?.endTime || phase.endTime || ''),
-        key
-      });
+    // Only open the popup when endTime is selected
+    if (key === 'endTime') {
+      const phase = blueprint.phases.find(p => p.id === phaseId);
+      if (phase) {
+        setPhaseTimingPopup({
+          isOpen: true,
+          phaseId,
+          dayValue,
+          startTime: (phase.dayTimes?.[dayValue]?.startTime || phase.startTime || ''),
+          endTime: value,
+          key
+        });
+      }
     }
   };
 
@@ -1697,7 +1700,7 @@ export default function App() {
     value: any
   ) => {
     updateQnaDayConfig(slotId, dayValue, key, value);
-    if (key === 'startTime' || key === 'endTime') {
+    if (key === 'endTime') {
       const slot = timeSlots.find(s => s.id === slotId);
       if (slot) {
         const currentConfig = getQnaDayConfig(slot, dayValue);
@@ -1705,9 +1708,9 @@ export default function App() {
           isOpen: true,
           slotId,
           dayValue,
-          startTime: key === 'startTime' ? value : (currentConfig.startTime || slot.startTime),
-          endTime: key === 'endTime' ? value : (currentConfig.endTime || slot.endTime),
-          key
+          startTime: currentConfig.startTime || slot.startTime,
+          endTime: value,
+          key: 'endTime'
         });
       }
     }
@@ -1765,30 +1768,27 @@ export default function App() {
 
   const handleApplyPhaseTimingToAll = () => {
     if (!phaseTimingPopup) return;
-    const { phaseId, startTime, endTime } = phaseTimingPopup;
+    const { startTime, endTime } = phaseTimingPopup;
     setBlueprint(prev => {
       const updatedPhases = prev.phases.map(p => {
-        if (p.id === phaseId) {
-          const activeDays = p.daysOfWeek && p.daysOfWeek.length > 0 
-            ? p.daysOfWeek 
-            : (p.dayOfWeek !== undefined && p.dayOfWeek !== 'all' ? [p.dayOfWeek] : []);
-            
-          const updatedDayTimes = { ...(p.dayTimes || {}) };
-          activeDays.forEach(dayVal => {
-            const existing = updatedDayTimes[dayVal] || { startTime: p.startTime || '', endTime: p.endTime || '' };
-            updatedDayTimes[dayVal] = {
-              ...existing,
-              startTime,
-              endTime
-            };
-          });
+        const activeDays = p.daysOfWeek && p.daysOfWeek.length > 0 
+          ? p.daysOfWeek 
+          : (p.dayOfWeek !== undefined && p.dayOfWeek !== 'all' ? [p.dayOfWeek] : []);
           
-          return {
-            ...p,
-            dayTimes: updatedDayTimes
+        const updatedDayTimes = { ...(p.dayTimes || {}) };
+        activeDays.forEach(dayVal => {
+          const existing = updatedDayTimes[dayVal] || { startTime: p.startTime || '', endTime: p.endTime || '' };
+          updatedDayTimes[dayVal] = {
+            ...existing,
+            startTime,
+            endTime
           };
-        }
-        return p;
+        });
+        
+        return {
+          ...p,
+          dayTimes: updatedDayTimes
+        };
       });
       const newBlueprint = { ...prev, phases: updatedPhases };
       localStorage.setItem('curriculum_blueprint', JSON.stringify(newBlueprint));
