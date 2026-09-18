@@ -255,7 +255,8 @@ import {
   DEFAULT_CURRICULUM_BLUEPRINT, 
   getSynchronizedCourseIDs,
   CurriculumPhase,
-  CurriculumSession
+  CurriculumSession,
+  resolveLiveSessionLink
 } from './lib/curriculum';
 import { parseCurriculumFromImage } from './lib/gemini';
 
@@ -947,6 +948,61 @@ export default function App() {
     endTime: string;
     key: 'startTime' | 'endTime';
   } | null>(null);
+
+  const [extraLinkDays, setExtraLinkDays] = useState<number[]>([]);
+
+  const ALL_WEEKDAYS_CONFIG = [
+    { value: 1, label: 'Monday', short: 'Mon', letter: 'M' },
+    { value: 2, label: 'Tuesday', short: 'Tue', letter: 'T' },
+    { value: 3, label: 'Wednesday', short: 'Wed', letter: 'W' },
+    { value: 4, label: 'Thursday', short: 'Thu', letter: 'T' },
+    { value: 5, label: 'Friday', short: 'Fri', letter: 'F' },
+    { value: 6, label: 'Saturday', short: 'Sat', letter: 'S' },
+    { value: 0, label: 'Sunday', short: 'Sun', letter: 'S' }
+  ];
+
+  const updateBlueprintState = (updater: (prev: CurriculumBlueprint) => CurriculumBlueprint) => {
+    setBlueprint(prev => {
+      const next = updater(prev);
+      try {
+        localStorage.setItem('curriculum_blueprint', JSON.stringify(next));
+      } catch (e) {
+        console.error('Failed to save blueprint', e);
+      }
+      return next;
+    });
+  };
+
+  const visibleLinkDayValues = React.useMemo(() => {
+    const set = new Set<number>(extraLinkDays);
+    
+    // Add all days configured across phases
+    blueprint.phases.forEach(p => {
+      if (p.daysOfWeek && p.daysOfWeek.length > 0) {
+        p.daysOfWeek.forEach(d => set.add(d));
+      } else if (p.dayOfWeek !== undefined && p.dayOfWeek !== 'all') {
+        set.add(p.dayOfWeek);
+      }
+    });
+
+    // Add days with existing links in blueprint
+    if (blueprint.globalSaturdayLink?.trim()) set.add(6);
+    if (blueprint.globalSundayLink?.trim()) set.add(0);
+    if (blueprint.globalDayLinks) {
+      Object.entries(blueprint.globalDayLinks).forEach(([d, val]) => {
+        if (typeof val === 'string' && val.trim()) set.add(Number(d));
+      });
+    }
+
+    // Default to Saturday & Sunday if no specific days are active or entered
+    if (set.size === 0) {
+      set.add(6);
+      set.add(0);
+    }
+
+    const logicalDayOrder = [1, 2, 3, 4, 5, 6, 0]; // Mon to Sun
+    return Array.from(set).sort((a, b) => logicalDayOrder.indexOf(a) - logicalDayOrder.indexOf(b));
+  }, [blueprint.phases, blueprint.globalSaturdayLink, blueprint.globalSundayLink, blueprint.globalDayLinks, extraLinkDays]);
 
   const currentActiveBatches = Array.from(new Set([
     ...recentBatches,
@@ -2160,7 +2216,7 @@ export default function App() {
             schedule.push({
               title: item.name,
               description: phase.name || '',
-              sessionLink: dayOfWeek === 6 ? (blueprint.globalSaturdayLink || '') : dayOfWeek === 0 ? (blueprint.globalSundayLink || '') : '',
+              sessionLink: resolveLiveSessionLink(dayOfWeek, phase, blueprint),
               sessionPlatform: 'ZOOM',
               category: 'live-sessions-aig',
               startTime: startStr,
@@ -2697,58 +2753,182 @@ export default function App() {
                     </div>
                     
                     {/* Global Phase Details (Batches, Links & Instructors) */}
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 bg-white/[0.02] p-4 rounded-2xl border border-brand-border">
-                      <div className="space-y-2">
-                        <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
-                          <Users size={12} className="text-brand-accent-violet" />
-                          Global Batch IDs (For Live Sessions)
-                        </label>
-                        <input 
-                          type="text" 
-                          value={(blueprint.globalBatches || []).join(', ')}
-                          onChange={(e) => setBlueprint(prev => ({ ...prev, globalBatches: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))}
-                          placeholder="e.g. batch_id_1, batch_id_2"
-                          className="w-full bg-white/5 border border-brand-border rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
-                        />
+                    <div className="space-y-4 bg-white/[0.02] p-4 rounded-2xl border border-brand-border shadow-sm">
+                      {/* Row 1: Global Batch IDs & Global Instructor ID */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
+                            <Users size={12} className="text-brand-accent-violet" />
+                            Global Batch IDs (For Live Sessions)
+                          </label>
+                          <input 
+                            type="text" 
+                            value={(blueprint.globalBatches || []).join(', ')}
+                            onChange={(e) => updateBlueprintState(prev => ({ 
+                              ...prev, 
+                              globalBatches: e.target.value.split(',').map(s => s.trim()).filter(Boolean) 
+                            }))}
+                            placeholder="e.g. batch_id_1, batch_id_2"
+                            className="w-full bg-white/5 border border-brand-border rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
+                            <Users size={12} className="text-brand-accent-violet" />
+                            Instructor ID (Global)
+                          </label>
+                          <input 
+                            type="text" 
+                            value={(blueprint.globalInstructors || []).join(', ')}
+                            onChange={(e) => updateBlueprintState(prev => ({ 
+                              ...prev, 
+                              globalInstructors: e.target.value.split(',').map(s => s.trim()).filter(Boolean) 
+                            }))}
+                            placeholder="e.g. instructor_1"
+                            className="w-full bg-white/5 border border-brand-border rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                          />
+                        </div>
                       </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
-                          <LinkIcon size={12} className="text-brand-accent-teal" />
-                          Saturday Session Link
-                        </label>
-                        <input 
-                          type="text" 
-                          value={blueprint.globalSaturdayLink || ''}
-                          onChange={(e) => setBlueprint(prev => ({ ...prev, globalSaturdayLink: e.target.value }))}
-                          placeholder="https://zoom.us/..."
-                          className="w-full bg-white/5 border border-brand-border rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-teal/20 focus:border-brand-accent-teal/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
-                          <LinkIcon size={12} className="text-brand-accent-teal" />
-                          Sunday Session Link
-                        </label>
-                        <input 
-                          type="text" 
-                          value={blueprint.globalSundayLink || ''}
-                          onChange={(e) => setBlueprint(prev => ({ ...prev, globalSundayLink: e.target.value }))}
-                          placeholder="https://zoom.us/..."
-                          className="w-full bg-white/5 border border-brand-border rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-teal/20 focus:border-brand-accent-teal/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-[10px] text-slate-400 uppercase font-bold tracking-wide flex items-center gap-1.5">
-                          <Users size={12} className="text-brand-accent-violet" />
-                          Instructor ID (Global)
-                        </label>
-                        <input 
-                          type="text" 
-                          value={(blueprint.globalInstructors || []).join(', ')}
-                          onChange={(e) => setBlueprint(prev => ({ ...prev, globalInstructors: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }))}
-                          placeholder="e.g. instructor_1"
-                          className="w-full bg-white/5 border border-brand-border rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-4 focus:ring-brand-accent-violet/20 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
-                        />
+
+                      {/* Row 2: Flexible Session Links by Day */}
+                      <div className="pt-3 border-t border-white/5 space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <label className="text-[10px] text-brand-accent-teal uppercase font-bold tracking-wide flex items-center gap-1.5">
+                              <LinkIcon size={12} />
+                              Flexible Session Links (By Day)
+                            </label>
+                            <span className="text-[10px] text-slate-500">
+                              (Adapts to your phase days, or click any day to configure)
+                            </span>
+                          </div>
+
+                          {/* Quick Day Selector Pills */}
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-slate-400 font-semibold mr-1">Configure Days:</span>
+                            {ALL_WEEKDAYS_CONFIG.map(d => {
+                              const isVisible = visibleLinkDayValues.includes(d.value);
+                              const hasLink = Boolean(
+                                (d.value === 6 ? blueprint.globalSaturdayLink : d.value === 0 ? blueprint.globalSundayLink : '') ||
+                                blueprint.globalDayLinks?.[d.value]
+                              );
+                              const isPhaseDay = blueprint.phases.some(p => 
+                                p.daysOfWeek?.includes(d.value) || (p.dayOfWeek !== undefined && p.dayOfWeek === d.value)
+                              );
+
+                              return (
+                                <button
+                                  key={d.value}
+                                  type="button"
+                                  onClick={() => {
+                                    if (isVisible) {
+                                      setExtraLinkDays(prev => prev.filter(x => x !== d.value));
+                                    } else {
+                                      setExtraLinkDays(prev => [...prev, d.value]);
+                                    }
+                                  }}
+                                  title={`${d.label} ${isPhaseDay ? '(Active in Phase)' : ''} ${hasLink ? '(Link configured)' : ''}`}
+                                  className={`relative w-6 h-6 rounded-md text-[10px] font-bold flex items-center justify-center transition-all ${
+                                    isVisible
+                                      ? 'bg-brand-accent-teal/20 text-brand-accent-teal border border-brand-accent-teal/50 shadow-sm'
+                                      : 'bg-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200 border border-transparent'
+                                  } ${isPhaseDay ? 'ring-1 ring-brand-accent-violet/60' : ''}`}
+                                >
+                                  {d.letter}
+                                  {hasLink && (
+                                    <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-emerald-400 rounded-full ring-1 ring-black" />
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Link Inputs Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                          {visibleLinkDayValues.map(dayVal => {
+                            const dayConfig = ALL_WEEKDAYS_CONFIG.find(d => d.value === dayVal) || { label: `Day ${dayVal}`, short: `D${dayVal}`, letter: 'D', value: dayVal };
+                            const currentLink = 
+                              dayVal === 6 
+                                ? (blueprint.globalDayLinks?.[6] || blueprint.globalSaturdayLink || '')
+                                : dayVal === 0 
+                                ? (blueprint.globalDayLinks?.[0] || blueprint.globalSundayLink || '')
+                                : (blueprint.globalDayLinks?.[dayVal] || '');
+
+                            const isPhaseDay = blueprint.phases.some(p => 
+                              p.daysOfWeek?.includes(dayVal) || (p.dayOfWeek !== undefined && p.dayOfWeek === dayVal)
+                            );
+
+                            return (
+                              <div key={dayVal} className="space-y-1.5 bg-white/[0.02] p-2.5 rounded-xl border border-brand-border/60 hover:border-brand-accent-teal/30 transition-all">
+                                <div className="flex items-center justify-between">
+                                  <label className="text-[10px] text-slate-300 font-bold tracking-wide flex items-center gap-1.5">
+                                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase ${
+                                      isPhaseDay ? 'bg-brand-accent-teal/20 text-brand-accent-teal' : 'bg-white/10 text-slate-300'
+                                    }`}>
+                                      {dayConfig.short}
+                                    </span>
+                                    {dayConfig.label} Link
+                                  </label>
+                                  {currentLink.trim() !== '' ? (
+                                    <span className="text-[9px] text-emerald-400 font-semibold flex items-center gap-0.5">
+                                      <Check size={10} /> Saved
+                                    </span>
+                                  ) : isPhaseDay ? (
+                                    <span className="text-[9px] text-brand-accent-violet font-semibold">Active</span>
+                                  ) : null}
+                                </div>
+                                <input 
+                                  type="text" 
+                                  value={currentLink}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    updateBlueprintState(prev => {
+                                      const updatedDayLinks = { ...(prev.globalDayLinks || {}), [dayVal]: val };
+                                      const updated: CurriculumBlueprint = {
+                                        ...prev,
+                                        globalDayLinks: updatedDayLinks
+                                      };
+                                      if (dayVal === 6) updated.globalSaturdayLink = val;
+                                      if (dayVal === 0) updated.globalSundayLink = val;
+                                      return updated;
+                                    });
+                                  }}
+                                  placeholder={`https://zoom.us/${dayConfig.short.toLowerCase()}...`}
+                                  className="w-full bg-white/5 border border-brand-border rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-brand-accent-teal/30 focus:border-brand-accent-teal/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                                />
+                              </div>
+                            );
+                          })}
+
+                          {/* Default / Fallback Link */}
+                          <div className="space-y-1.5 bg-white/[0.02] p-2.5 rounded-xl border border-brand-border/60 hover:border-brand-accent-violet/30 transition-all">
+                            <div className="flex items-center justify-between">
+                              <label className="text-[10px] text-slate-400 font-bold tracking-wide flex items-center gap-1.5">
+                                <span className="px-1.5 py-0.5 rounded bg-brand-accent-violet/20 text-brand-accent-violet text-[9px] font-extrabold uppercase">
+                                  All
+                                </span>
+                                Default / Fallback Link
+                              </label>
+                              {blueprint.globalSessionLink?.trim() ? (
+                                <span className="text-[9px] text-emerald-400 font-semibold flex items-center gap-0.5">
+                                  <Check size={10} /> Saved
+                                </span>
+                              ) : null}
+                            </div>
+                            <input 
+                              type="text" 
+                              value={blueprint.globalSessionLink || ''}
+                              onChange={(e) => updateBlueprintState(prev => ({
+                                ...prev,
+                                globalSessionLink: e.target.value
+                              }))}
+                              placeholder="Fallback for any unlisted day"
+                              className="w-full bg-white/5 border border-brand-border rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-brand-accent-violet/30 focus:border-brand-accent-violet/50 transition-all text-slate-200 placeholder:text-slate-500 shadow-sm"
+                            />
+                          </div>
+                        </div>
                       </div>
                     </div>
 

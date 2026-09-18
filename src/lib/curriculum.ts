@@ -23,15 +23,19 @@ export interface CurriculumBlueprint {
   phases: CurriculumPhase[];
   batchPhaseIds: Record<string, Record<string, string>>; // Batch -> PhaseID -> CourseID
   globalBatches?: string[];
-  globalSaturdayLink?: string;
-  globalSundayLink?: string;
+  globalSessionLink?: string; // Universal default link for all sessions
+  globalSaturdayLink?: string; // Day 6 (Sat)
+  globalSundayLink?: string;   // Day 0 (Sun)
+  globalDayLinks?: Record<number, string>; // Day of week (0=Sun, 1=Mon, ..., 6=Sat) -> link
   globalInstructors?: string[];
 }
 
 export const DEFAULT_CURRICULUM_BLUEPRINT: CurriculumBlueprint = {
   globalBatches: [],
+  globalSessionLink: '',
   globalSaturdayLink: '',
   globalSundayLink: '',
+  globalDayLinks: {},
   globalInstructors: [],
   phases: [
     {
@@ -128,3 +132,72 @@ export function getSynchronizedCourseIDs(
 
   return ids.join(', ');
 }
+
+/**
+ * Intelligently and flexibly resolves the session link for a given live session.
+ * Handles:
+ * 1. Phase-level custom override (if configured)
+ * 2. Day-specific link (globalDayLinks[dayOfWeek])
+ * 3. Legacy Saturday (day 6) / Sunday (day 0) links
+ * 4. Universal default session link (globalSessionLink)
+ * 5. Flexible slot/positional fallback for active phase days (e.g. 1st active day gets 1st link, 2nd gets 2nd link)
+ * 6. Global fallback to any provided link so links are never dropped.
+ */
+export function resolveLiveSessionLink(
+  dayOfWeek: number,
+  phase: CurriculumPhase,
+  blueprint: CurriculumBlueprint
+): string {
+  // 1. Direct phase override
+  if (phase.sessionLink?.trim()) {
+    return phase.sessionLink.trim();
+  }
+
+  // 2. Exact Day-specific link from globalDayLinks
+  const dayLink = blueprint.globalDayLinks?.[dayOfWeek]?.trim();
+  if (dayLink) return dayLink;
+
+  // 3. Saturday / Sunday explicit links
+  if (dayOfWeek === 6 && blueprint.globalSaturdayLink?.trim()) {
+    return blueprint.globalSaturdayLink.trim();
+  }
+  if (dayOfWeek === 0 && blueprint.globalSundayLink?.trim()) {
+    return blueprint.globalSundayLink.trim();
+  }
+
+  // 4. Universal default session link
+  if (blueprint.globalSessionLink?.trim()) {
+    return blueprint.globalSessionLink.trim();
+  }
+
+  // 5. Positional fallback based on phase active days (e.g. Day 1 -> Box 1, Day 2 -> Box 2)
+  const logicalDayOrder = [1, 2, 3, 4, 5, 6, 0];
+  const phaseDays = (phase.daysOfWeek && phase.daysOfWeek.length > 0)
+    ? [...phase.daysOfWeek].sort((a, b) => logicalDayOrder.indexOf(a) - logicalDayOrder.indexOf(b))
+    : (phase.dayOfWeek !== undefined && phase.dayOfWeek !== 'all' ? [phase.dayOfWeek] : []);
+
+  const dayPos = phaseDays.indexOf(dayOfWeek);
+  if (dayPos === 0) {
+    // 1st active day (Slot A) - fallback to 1st provided link (e.g. Saturday box or 1st day link)
+    if (blueprint.globalSaturdayLink?.trim()) return blueprint.globalSaturdayLink.trim();
+    if (blueprint.globalSundayLink?.trim()) return blueprint.globalSundayLink.trim();
+  } else if (dayPos === 1) {
+    // 2nd active day (Slot B) - fallback to 2nd provided link (e.g. Sunday box or 2nd day link)
+    if (blueprint.globalSundayLink?.trim()) return blueprint.globalSundayLink.trim();
+    if (blueprint.globalSaturdayLink?.trim()) return blueprint.globalSaturdayLink.trim();
+  }
+
+  // 6. Absolute fallback: If any link exists across all fields, don't leave it blank
+  const allLinks = [
+    blueprint.globalSaturdayLink,
+    blueprint.globalSundayLink,
+    ...Object.values(blueprint.globalDayLinks || {})
+  ].filter(Boolean) as string[];
+
+  if (allLinks.length > 0 && allLinks[0].trim()) {
+    return allLinks[0].trim();
+  }
+
+  return '';
+}
+
